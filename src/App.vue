@@ -1,7 +1,7 @@
 ﻿<template>
   <div class="app-container">
     <div class="nav-menu">
-      <button :class="{ active: currentView === 'demo' }" @click="currentView = 'demo'">原始Demo</button>
+      <!-- <button :class="{ active: currentView === 'demo' }" @click="currentView = 'demo'">原始Demo</button> -->
       <button :class="{ active: currentView === 'demo2' }" @click="currentView = 'demo2'">3D模型查看器</button>
       <button :class="{ active: currentView === 'demo3' }" @click="currentView = 'demo3'">阀门金属材质</button>
     </div>

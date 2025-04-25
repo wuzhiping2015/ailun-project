@@ -14,6 +14,24 @@
       <button @click="retryLoading" class="retry-button">重试加载</button>
     </div>
     
+    <!-- 新增：模型选择器 -->
+    <div class="model-selector">
+      <div class="model-category" v-for="(models, category) in modelCategories" :key="category">
+        <h3>{{ category }}</h3>
+        <div class="model-buttons">
+          <button 
+            v-for="model in models" 
+            :key="model.path"
+            @click="loadSpecificModel(model.path)"
+            :class="{ active: currentModel === model.path }"
+            :title="model.name"
+          >
+            {{ model.name }}
+          </button>
+        </div>
+      </div>
+    </div>
+    
     <!-- 控制面板 -->
     <div class="controls-panel">
       <div class="control-group">
@@ -252,6 +270,26 @@ const modelInfo = reactive({
   materials: 0,
   dimensions: '0 x 0 x 0'
 });
+
+// 新增：当前模型和模型分类
+const currentModel = ref('阀门.fbx');
+const modelCategories = reactive({
+  '船舶模型': [
+    { name: 'STEP203模型', path: 'STEP203.fbx' },
+    { name: '船模型 (GLTF)', path: '6.gltf' },
+    { name: '船模型1 (FBX)', path: 'ship1.fbx' },
+    { name: '备用模型 (GLTF)', path: 'untitled.gltf' }
+  ],
+  '其他模型': [
+    { name: '1号模型 (FBX)', path: '1.fbx' },
+    { name: '2号模型 (FBX)', path: '2.fbx' },
+    { name: 'PrimaryIonDrive', path: 'PrimaryIonDrive.glb' },
+    { name: 'UI模型', path: 'ui.fbx' },
+    { name: '机器模型', path: 'machine.fbx' },
+    { name: '阀门模型', path: '阀门.fbx' }
+  ]
+});
+
 // 将nonReactiveObjects从reactive改为普通对象
 const nonReactiveObjects = {
   scene: null,
@@ -266,6 +304,7 @@ const nonReactiveObjects = {
   intersectMeshes: null,
   lastModelUpdate: null
 };
+
 const showGrid = ref(true);
 const showAxes = ref(true);
 const showBoundingBox = ref(false);
@@ -528,133 +567,11 @@ const loadModel = async (url = '阀门.fbx') => {
   }
   
   try {
-    // 显示加载状态
-    loading.value = true;
-    
-    // 清除场景中的现有模型
-    if (model.value) {
-      scene.value.remove(model.value);
-      model.value = null;
-    }
-    
-    // 根据文件类型选择合适的加载器
-    let loader;
-    if (url.toLowerCase().endsWith('.gltf') || url.toLowerCase().endsWith('.glb')) {
-      loader = new GLTFLoader();
-    } else if (url.toLowerCase().endsWith('.obj')) {
-      loader = new OBJLoader();
-    } else if (url.toLowerCase().endsWith('.fbx')) {
-      loader = new FBXLoader();
-    } else {
-      throw new Error(`不支持的文件格式: ${url}`);
-    }
-    
-    // 加载模型
-    const result = await new Promise((resolve, reject) => {
-      loader.load(
-        url,
-        (object) => resolve(object),
-        (xhr) => {
-          if (xhr.lengthComputable) {
-            const percentComplete = (xhr.loaded / xhr.total) * 100;
-            loadingProgress.value = Math.round(percentComplete);
-          }
-        },
-        (error) => reject(error)
-      );
-    });
-    
-    // 处理不同类型的模型结果
-    if (url.toLowerCase().endsWith('.gltf') || url.toLowerCase().endsWith('.glb')) {
-      model.value = markRaw(result.scene); // 使用markRaw确保模型不被Vue响应式系统代理
-    } else {
-      model.value = markRaw(result); // 使用markRaw确保模型不被Vue响应式系统代理
-    }
-    
-    // 处理模型材质和阴影
-    model.value.traverse((child) => {
-      if (child instanceof THREE.Mesh) {
-        child.castShadow = true;
-        child.receiveShadow = true;
-        
-        // 初始化材质颜色副本
-        if (child.material) {
-          if (Array.isArray(child.material)) {
-            child.material.forEach((material) => {
-              if (material.color) {
-                material.userData.originalColor = material.color.clone();
-              }
-            });
-          } else if (child.material.color) {
-            child.material.userData.originalColor = child.material.color.clone();
-          }
-        }
-        
-        // 将所有材质转换为MeshStandardMaterial，以便应用金属度和粗糙度
-        upgradeToStandardMaterial(child);
-      }
-    });
-    
-    // 处理不同格式模型的特殊逻辑
-    if (url.toLowerCase().endsWith('.fbx')) {
-      // FBX模型可能需要缩放和位置调整
-      console.log('正在处理FBX模型...');
-      if (!model.value.scale || model.value.scale.x === 0) {
-        // 设置默认缩放
-        model.value.scale.set(0.01, 0.01, 0.01);
-      }
-      
-      // 设置名称，便于后续查找
-      model.value.name = "loadedModel";
-      
-      // 计算模型包围盒
-      const box = new THREE.Box3().setFromObject(model.value);
-      // 将模型定位到场景中央底部
-      if (!box.isEmpty()) {
-        const center = new THREE.Vector3();
-        box.getCenter(center);
-        const size = new THREE.Vector3();
-        box.getSize(size);
-        
-        // 调整位置到坐标系原点
-        model.value.position.x = -center.x;
-        model.value.position.z = -center.z;
-        model.value.position.y = -box.min.y; // 放置在"地面"上
-        
-        console.log('FBX模型尺寸:', size);
-        console.log('FBX模型位置调整为:', model.value.position);
-      }
-    } else {
-      // 其他格式模型的处理
-      model.value.name = "loadedModel";
-    }
-    
-    // 添加模型到场景
-    scene.value.add(model.value);
-    // 也将模型添加到nonReactiveObjects中，保证一致性
-    nonReactiveObjects.model = model.value;
-    
-    // 更新包围盒
-    updateBoundingBox();
-    
-    // 自动对焦模型
-    resetView();
-    
-    console.log('模型加载成功:', url);
-    // 设置模型已加载标志
-    modelLoaded.value = true;
-    
-    // 更新模型信息
-    updateModelInfo(model.value);
-    
-    // 提取模型部件信息
-    extractPartsList(model.value);
+    // 调用loadSpecificModel函数
+    await loadSpecificModel(url);
   } catch (error) {
     console.error('模型加载失败:', error);
     errorMessage.value = `加载模型失败: ${error.message}`;
-  } finally {
-    loading.value = false;
-    loadingProgress.value = 0;
   }
 };
 
@@ -1872,6 +1789,15 @@ onMounted(() => {
     // 兼容旧版浏览器
     mediaQueryList.addListener(onDevicePixelRatioChange);
   }
+  
+  // 初始化stats
+  if (debugMode.value) {
+    stats.value = markRaw(new Stats());
+    document.body.appendChild(stats.value.dom);
+  }
+  
+  // 监听键盘事件
+  window.addEventListener("keydown", onKeyDown);
 });
 
 // 卸载前清理
@@ -2427,6 +2353,178 @@ const upgradeToStandardMaterial = (meshObject) => {
     console.error('升级材质时出错:', error);
   }
 };
+
+// 在loadModel函数前添加新的loadSpecificModel函数
+const loadSpecificModel = async (modelPath) => {
+  if (!scene.value) {
+    console.error('场景未初始化');
+    return;
+  }
+  
+  // 记录当前选中的模型
+  currentModel.value = modelPath;
+  
+  // 重置状态
+  modelLoaded.value = false;
+  loadError.value = null;
+  loadingProgress.value = 0;
+  loading.value = true;
+  
+  // 清理当前模型
+  cleanupModel();
+  
+  try {
+    // 根据文件类型选择合适的加载器
+    let loader;
+    if (modelPath.toLowerCase().endsWith('.gltf') || modelPath.toLowerCase().endsWith('.glb')) {
+      loader = gltfLoader;
+    } else if (modelPath.toLowerCase().endsWith('.obj')) {
+      loader = new OBJLoader();
+    } else if (modelPath.toLowerCase().endsWith('.fbx')) {
+      loader = new FBXLoader();
+    } else {
+      throw new Error(`不支持的文件格式: ${modelPath}`);
+    }
+    
+    // 加载模型
+    const result = await new Promise((resolve, reject) => {
+      loader.load(
+        modelPath,
+        (object) => resolve(object),
+        (xhr) => {
+          if (xhr.lengthComputable) {
+            const percentComplete = (xhr.loaded / xhr.total) * 100;
+            loadingProgress.value = Math.round(percentComplete);
+          }
+        },
+        (error) => reject(error)
+      );
+    });
+    
+    // 处理不同类型的模型结果
+    if (modelPath.toLowerCase().endsWith('.gltf') || modelPath.toLowerCase().endsWith('.glb')) {
+      model.value = markRaw(result.scene);
+    } else {
+      model.value = markRaw(result);
+    }
+    
+    // 处理模型材质和阴影
+    model.value.traverse((child) => {
+      if (child instanceof THREE.Mesh) {
+        child.castShadow = true;
+        child.receiveShadow = true;
+        
+        // 初始化材质颜色副本
+        if (child.material) {
+          if (Array.isArray(child.material)) {
+            child.material.forEach((material) => {
+              if (material.color) {
+                material.userData.originalColor = material.color.clone();
+              }
+            });
+          } else if (child.material.color) {
+            child.material.userData.originalColor = child.material.color.clone();
+          }
+        }
+        
+        // 将所有材质转换为MeshStandardMaterial，以便应用金属度和粗糙度
+        upgradeToStandardMaterial(child);
+      }
+    });
+    
+    // 处理不同格式模型的特殊逻辑
+    if (modelPath.toLowerCase().endsWith('.fbx')) {
+      console.log('正在处理FBX模型...');
+      if (!model.value.scale || model.value.scale.x === 0) {
+        model.value.scale.set(0.01, 0.01, 0.01);
+      }
+      
+      model.value.name = "loadedModel";
+      
+      // 计算模型包围盒
+      const box = new THREE.Box3().setFromObject(model.value);
+      // 将模型定位到场景中央底部
+      if (!box.isEmpty()) {
+        const center = new THREE.Vector3();
+        box.getCenter(center);
+        const size = new THREE.Vector3();
+        box.getSize(size);
+        
+        model.value.position.x = -center.x;
+        model.value.position.z = -center.z;
+        model.value.position.y = -box.min.y;
+        
+        console.log('FBX模型尺寸:', size);
+        console.log('FBX模型位置调整为:', model.value.position);
+      }
+    } else if (modelPath.toLowerCase().endsWith('.gltf') || modelPath.toLowerCase().endsWith('.glb')) {
+      model.value.name = "loadedModel";
+      
+      // 计算模型包围盒
+      const box = new THREE.Box3().setFromObject(model.value);
+      if (!box.isEmpty()) {
+        const center = new THREE.Vector3();
+        box.getCenter(center);
+        const size = new THREE.Vector3();
+        box.getSize(size);
+        
+        // 调整模型位置和缩放
+        const maxDim = Math.max(size.x, size.y, size.z);
+        const scale = maxDim > 0 ? 5 / maxDim : 1;
+        model.value.scale.set(scale, scale, scale);
+        model.value.position.set(-center.x * scale, -box.min.y * scale, -center.z * scale);
+        
+        console.log('GLTF模型尺寸:', size);
+        console.log('GLTF模型位置调整为:', model.value.position);
+      }
+    } else {
+      model.value.name = "loadedModel";
+    }
+    
+    // 添加模型到场景
+    scene.value.add(model.value);
+    nonReactiveObjects.model = model.value;
+    
+    // 更新包围盒
+    updateBoundingBox();
+    
+    // 自动对焦模型
+    resetView();
+    
+    console.log('模型加载成功:', modelPath);
+    modelLoaded.value = true;
+    
+    // 更新模型信息
+    updateModelInfo(model.value);
+    
+    // 提取模型部件信息
+    extractPartsList(model.value);
+  } catch (error) {
+    console.error('模型加载失败:', error);
+    loadError.value = `加载模型失败: ${error.message}`;
+  } finally {
+    loading.value = false;
+    loadingProgress.value = 0;
+  }
+};
+
+
+
+// 更新挂载方法，加载默认模型
+onMounted(() => {
+  initThreeJS();
+  loadModel();
+  window.addEventListener("resize", onWindowResize);
+  // 初始化stats
+  if (debugMode.value) {
+    stats.value = markRaw(new Stats());
+    document.body.appendChild(stats.value.dom);
+  }
+  // 监听键盘事件
+  window.addEventListener("keydown", onKeyDown);
+});
+
+// ... 保留原有代码 ...
 </script>
 
 <style scoped>
@@ -2804,5 +2902,58 @@ input[type="range"][v-model="simplificationRatio"] {
 
 .retry-button:hover {
   background-color: #ff7700;
+}
+
+/* 新增模型选择器样式 */
+.model-selector {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  background-color: rgba(0, 0, 0, 0.7);
+  padding: 10px;
+  border-radius: 4px;
+  color: white;
+  max-width: 300px;
+  z-index: 10;
+}
+
+.model-category {
+  margin-bottom: 10px;
+}
+
+.model-category h3 {
+  color: white;
+  margin: 0 0 5px 0;
+  font-size: 14px;
+}
+
+.model-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.model-buttons button {
+  padding: 5px 8px;
+  background-color: rgba(255, 255, 255, 0.15);
+  color: white;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.3s;
+  font-size: 12px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 120px;
+}
+
+.model-buttons button:hover {
+  background-color: rgba(255, 255, 255, 0.25);
+}
+
+.model-buttons button.active {
+  background-color: rgba(0, 150, 255, 0.5);
+  border-color: rgba(0, 150, 255, 0.8);
 }
 </style> 
