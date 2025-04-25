@@ -5,7 +5,9 @@
       <button :class="{ active: currentView === 'demo2' }" @click="currentView = 'demo2'">3D模型查看器</button>
       <button :class="{ active: currentView === 'demo3' }" @click="currentView = 'demo3'">阀门金属材质</button>
     </div>
-    <component :is="currentComponent" />
+    <div class="content-container">
+      <component :is="currentComponent" />
+    </div>
   </div>
 </template>
 
@@ -37,9 +39,11 @@ export default {
 </script>
 
 <style>
-body {
+html, body {
   margin: 0;
   padding: 0;
+  height: 100%;
+  overflow: hidden;
   font-family: Arial, sans-serif;
 }
 
@@ -47,6 +51,14 @@ body {
   display: flex;
   flex-direction: column;
   height: 100vh;
+  overflow: hidden; /* 防止出现滚动条 */
+}
+
+.content-container {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden; /* 防止内容溢出 */
 }
 
 .nav-menu {
