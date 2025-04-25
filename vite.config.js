@@ -11,10 +11,35 @@ export default defineConfig({
         }
     },
     server: {
+        port: 3000,
+        host: true,
+        open: true,
         fs: {
-            // 允许服务访问上层目录，这样才能访问public文件夹
+            strict: false,
             allow: ['..']
         }
     },
-    assetsInclude: ['**/*.gltf', '**/*.glb', '**/*.fbx']
+    build: {
+        worker: {
+            format: 'es',
+            plugins: () => [vue()],
+        },
+        rollupOptions: {
+            output: {
+                manualChunks: {
+                    'three-core': ['three'],
+                    'three-examples': ['three/examples/jsm/loaders/GLTFLoader.js', 'three/examples/jsm/loaders/DRACOLoader.js'],
+                },
+            },
+        },
+        assetsInlineLimit: 0,
+    },
+    optimizeDeps: {
+        exclude: ['three/examples/jsm/loaders/DRACOLoader.js'],
+        esbuildOptions: {
+            target: 'esnext',
+        },
+    },
+    // 添加assetsInclude配置
+    assetsInclude: ['**/*.gltf', '**/*.glb', '**/*.obj', '**/*.fbx']
 })

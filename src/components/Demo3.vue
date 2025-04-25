@@ -212,9 +212,12 @@
 <script setup>
 import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
+import { OBJLoader } from "three/examples/jsm/loaders/OBJLoader.js";
+import { FBXLoader } from "three/examples/jsm/loaders/FBXLoader.js";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { DRACOLoader } from "three/examples/jsm/loaders/DRACOLoader.js";
-import { markRaw, ref, reactive, onMounted, onBeforeUnmount, computed, nextTick } from "vue";
+import { markRaw, ref, reactive, onMounted, onBeforeUnmount, onUnmounted, computed, nextTick, watch } from "vue";
+import Stats from "three/examples/jsm/libs/stats.module.js";
 
 // 新增：几何体简化
 import { SimplifyModifier } from "three/examples/jsm/modifiers/SimplifyModifier.js";
@@ -227,19 +230,30 @@ const camera = ref(null);
 const renderer = ref(null);
 const controls = ref(null);
 const model = ref(null);
+const container = ref(null); // 添加container的ref定义
+const stats = ref(null); // 添加stats的ref定义
 let animationFrameId = null;
 const clock = new THREE.Clock();
 const initialCameraPosition = new THREE.Vector3(0, 0, 5);
 const modelLoaded = ref(false);
 const loadError = ref(null);
 const loadingProgress = ref(0);
+const loading = ref(false); // 添加loading的ref定义
+const boundingBox = ref(null); // 添加boundingBox的ref定义
+const boundingBoxHelper = ref(null); // 添加boundingBoxHelper的ref定义
+const debugMode = ref(false); // 添加debugMode的ref定义
+const clippingPlanes = ref([]); // 添加clippingPlanes的ref定义
+const clippingPlaneHelper = ref(null); // 添加clippingPlaneHelper的ref定义
+const showClippingPlaneHelper = ref(false); // 添加showClippingPlaneHelper的ref定义
+const errorMessage = ref(null); // 添加errorMessage的ref定义
 const modelInfo = reactive({
   vertices: 0,
   faces: 0,
   materials: 0,
   dimensions: '0 x 0 x 0'
 });
-const nonReactiveObjects = reactive({
+// 将nonReactiveObjects从reactive改为普通对象
+const nonReactiveObjects = {
   scene: null,
   camera: null,
   renderer: null,
@@ -248,7 +262,10 @@ const nonReactiveObjects = reactive({
   originalMaterials: new Map(),
   mouse: { x: 0, y: 0 },
   raycaster: null,
-});
+  modelManager: null,
+  intersectMeshes: null,
+  lastModelUpdate: null
+};
 const showGrid = ref(true);
 const showAxes = ref(true);
 const showBoundingBox = ref(false);
@@ -262,8 +279,8 @@ const searchQuery = ref(''); // 搜索查询
 let highlightMaterial = null; // 高亮材质
 let selectedMaterial = null; // 选中材质
 const showWireframe = ref(false); // 新增：显示线框
-const useSimplifiedModel = ref(false); // 新增：使用简化模型
-const simplificationRatio = ref(0.5); // 新增：简化比例
+const useSimplifiedModel = ref(true); // 修改为默认启用
+const simplificationRatio = ref(0.7); // 更激进的简化比例，从0.5提高到0.7
 
 // 新增：定义LOD层级
 const LOD_LEVELS = {
@@ -294,6 +311,7 @@ const filteredParts = computed(() => {
 // 初始化Three.js
 const initThreeJS = () => {
   try {
+    // 创建场景 - 使用markRaw确保Three.js对象不会被Vue响应式系统代理
     const sceneObj = markRaw(new THREE.Scene());
     sceneObj.background = new THREE.Color(0x222222);
     
@@ -307,8 +325,8 @@ const initThreeJS = () => {
     mainLight.castShadow = true;
     
     // 优化阴影质量 - 针对性能优化降低阴影贴图分辨率
-    mainLight.shadow.mapSize.width = 1024; // 从2048降低到1024
-    mainLight.shadow.mapSize.height = 1024; // 从2048降低到1024
+    mainLight.shadow.mapSize.width = 512; // 从1024降低到512，进一步减少内存使用
+    mainLight.shadow.mapSize.height = 512; // 从1024降低到512，进一步减少内存使用
     mainLight.shadow.camera.near = 0.5;
     mainLight.shadow.camera.far = 500;
     // 优化阴影相机视锥体，减少阴影计算范围
@@ -328,8 +346,9 @@ const initThreeJS = () => {
     hemiLight.position.set(0, 20, 0);
     sceneObj.add(hemiLight);
 
+    // 同时更新nonReactiveObjects和ref，确保一致性
     nonReactiveObjects.scene = sceneObj;
-    scene.value = sceneObj;
+    scene.value = sceneObj; // 保持ref和非响应式引用一致
     
     // 获取容器并设置相机
     const container = document.getElementById("model-viewer");
@@ -347,28 +366,30 @@ const initThreeJS = () => {
     cameraObj.position.copy(initialCameraPosition);
     cameraObj.lookAt(0, 0, 0);
     
+    // 同时更新nonReactiveObjects和ref，确保一致性
     nonReactiveObjects.camera = cameraObj;
     camera.value = cameraObj;
 
     // 创建渲染器
     const rendererObj = markRaw(new THREE.WebGLRenderer({
-      antialias: true,
+      antialias: false, // 关闭抗锯齿以提高性能
       alpha: true,
       logarithmicDepthBuffer: true,
       powerPreference: "high-performance" // 新增：优先选择高性能GPU
     }));
     
     rendererObj.setSize(container.clientWidth, container.clientHeight);
-    rendererObj.setPixelRatio(Math.min(window.devicePixelRatio, 2)); // 确保不超过2的像素比
+    rendererObj.setPixelRatio(Math.min(window.devicePixelRatio, 1.5)); // 限制像素比最大为1.5
     rendererObj.shadowMap.enabled = true;
-    rendererObj.shadowMap.type = THREE.PCFSoftShadowMap;
+    rendererObj.shadowMap.type = THREE.PCFShadowMap; // 使用更高效的阴影类型
     rendererObj.outputColorSpace = THREE.SRGBColorSpace;
     rendererObj.toneMapping = THREE.ACESFilmicToneMapping;
     
     // 新增：优化渲染器性能设置
     rendererObj.sortObjects = false; // 禁用对象排序，提高性能
-    rendererObj.physicallyCorrectLights = false; // 关闭物理正确光照，降低计算量
+    rendererObj.useLegacyLights = true; // 使用旧版光照模型，而不是physicallyCorrectLights
     
+    // 同时更新nonReactiveObjects和ref，确保一致性
     nonReactiveObjects.renderer = rendererObj;
     renderer.value = rendererObj;
 
@@ -384,6 +405,7 @@ const initThreeJS = () => {
     controlsObj.maxPolarAngle = Math.PI / 1.5;
     controlsObj.update();
     
+    // 同时更新nonReactiveObjects和ref，确保一致性
     nonReactiveObjects.controls = controlsObj;
     controls.value = controlsObj;
 
@@ -434,6 +456,7 @@ const initThreeJS = () => {
     const animate = () => {
       animationFrameId = requestAnimationFrame(animate);
       
+      // 使用从nonReactiveObjects获取的原始对象，不使用ref.value以避免代理问题
       const currentCamera = nonReactiveObjects.camera;
       const currentScene = nonReactiveObjects.scene;
       const currentRenderer = nonReactiveObjects.renderer;
@@ -443,11 +466,11 @@ const initThreeJS = () => {
         currentControls.update();
       }
 
-      // 新增：性能监控
+      // 新增：性能监控 - 降低更新频率
       const now = performance.now();
       perfMonitor.frameCount++;
       
-      // 每秒更新一次FPS计数
+      // 每秒更新一次FPS计数，而不是每帧更新
       if (now - perfMonitor.lastFpsUpdateTime > 1000) {
         perfMonitor.fps = Math.round((perfMonitor.frameCount * 1000) / (now - perfMonitor.lastFpsUpdateTime));
         perfMonitor.frameCount = 0;
@@ -459,13 +482,18 @@ const initThreeJS = () => {
         }
       }
 
-      // 检查鼠标射线交点 - 性能优化：降低射线投射频率
-      if (perfMonitor.frameCount % 2 === 0) { // 每两帧检查一次
+      // 检查鼠标射线交点 - 性能优化：大幅降低射线投射频率
+      if (perfMonitor.frameCount % 4 === 0) { // 每四帧检查一次
         checkIntersection();
       }
 
+      // 确保场景、相机和渲染器存在，且没有进入Vue响应式系统
       if (currentScene && currentCamera && currentRenderer) {
-        currentRenderer.render(currentScene, currentCamera);
+        try {
+          currentRenderer.render(currentScene, currentCamera);
+        } catch (error) {
+          console.error("渲染错误：", error);
+        }
       }
     };
     
@@ -476,483 +504,480 @@ const initThreeJS = () => {
   }
 };
 
-// 加载模型
-const loadModel = () => {
-  modelLoaded.value = false;
-  loadError.value = null;
-  loadingProgress.value = 0;
-  
-  console.log("开始加载K60发电机.gltf模型，当前路径：", window.location.href);
-  
-  // 清理旧模型资源
-  cleanupModel();
-  
-  // 新增：创建加载管理器
-  const loadingManager = new LoadingManager();
-  loadingManager.onProgress = (url, itemsLoaded, itemsTotal) => {
-    loadingProgress.value = Math.round((itemsLoaded / itemsTotal) * 100);
-    console.log(`加载进度: ${loadingProgress.value}% (${url})`);
-  };
-  
-  loadingManager.onError = (url) => {
-    console.error("加载出错:", url);
-    loadError.value = `加载出错: ${url}`;
-  };
+// 在script标签顶部添加导入
+import { PerformanceMonitor } from "../utils/PerformanceMonitor";
+import { ModelManager } from "../utils/ModelManager";
 
-  loadingManager.onLoad = () => {
-    console.log("所有资源加载完成");
-  };
-  
-  const loader = new GLTFLoader(loadingManager);
-  
-  // 添加DRACO压缩支持
-  const dracoLoader = new DRACOLoader();
-  // 修改解码器路径，使用相对路径指向public下的draco文件夹
-  dracoLoader.setDecoderPath('/draco/');
-  // 改为使用兼容性更好的JS解码器
-  dracoLoader.setDecoderConfig({ type: 'js' });
-  // 预加载解码器文件，确保解码器先加载完成
-  dracoLoader.preload();
-  
-  loader.setDRACOLoader(dracoLoader);
+// 初始化工作线程
+let modelWorker = null;
+try {
+  modelWorker = new Worker(new URL('../workers/modelSimplifyWorker.js', import.meta.url), { type: 'module' });
+} catch (e) {
+  console.error("无法初始化模型简化工作线程:", e);
+}
 
-  // 尝试多种可能的路径
-  const possiblePaths = [
-    './K60发电机.gltf',
-    '/K60发电机.gltf',
-    'K60发电机.gltf',
-    '/public/K60发电机.gltf',
-    '../public/K60发电机.gltf',
-    // 添加带时间戳的URL，避免缓存问题
-    `/K60发电机.gltf?t=${Date.now()}`,
-    // 添加绝对路径
-    `${window.location.origin}/K60发电机.gltf`,
-    // 尝试加载其他可用模型
-    '/K60发电机.gltf',
-    '/PrimaryIonDrive.glb'
-  ];
-  
-  console.log("尝试加载以下路径:", possiblePaths);
-  
-  // 使用第一个路径尝试加载
-  tryLoadModel(loader, possiblePaths, 0);
-};
+const gltfLoader = new GLTFLoader().setPath('/');
+const dracoLoader = new DRACOLoader();
+dracoLoader.setDecoderPath('/draco/');
+gltfLoader.setDRACOLoader(dracoLoader);
 
-// 尝试按顺序加载不同路径的模型
-const tryLoadModel = (loader, paths, index) => {
-  if (index >= paths.length) {
-    loadError.value = "所有可能的模型路径均加载失败";
-    console.error("所有路径都尝试失败");
+const loadModel = async (url = '阀门.fbx') => {
+  if (!scene.value) {
+    console.error('场景未初始化');
     return;
   }
   
-  const path = paths[index];
-  console.log(`尝试加载路径 (${index+1}/${paths.length}): ${path}`);
-  
-  loader.load(
-    path,
-    (gltf) => {
-      try {
-        console.log(`${path} 模型加载成功:`, gltf);
-        console.log({
-          animations: gltf.animations?.length || 0,
-          scenes: gltf.scenes?.length || 0,
-          cameras: gltf.cameras?.length || 0,
-          assets: gltf.asset
-        });
-        
-        if (!gltf.scene) {
-          throw new Error("加载的模型没有场景数据");
-        }
-        
-        // 使用markRaw防止Vue的响应式系统代理Three.js对象
-        const sceneObj = markRaw(gltf.scene);
-        
-        // 新增：根据选项决定是否简化模型
-        if (useSimplifiedModel.value) {
-          console.log("开始简化模型...");
-          // 使用延迟处理，避免阻塞主线程
-          simplifyModelAsync(sceneObj).then(simplifiedModel => {
-            console.log("模型简化完成，正在处理...");
-            processModel(simplifiedModel);
-          }).catch(err => {
-            console.error("模型简化错误:", err);
-            loadError.value = `模型简化错误: ${err.message}`;
-            // 如果简化失败，使用原始模型
-            processModel(sceneObj);
-          });
-        } else {
-          processModel(sceneObj);
-        }
-      } catch (err) {
-        console.error(`${path} 模型处理错误:`, err);
-        loadError.value = `模型处理错误: ${err.message}`;
-        // 尝试下一个路径
-        tryLoadModel(loader, paths, index + 1);
-      }
-    },
-    // 进度回调
-    (xhr) => {
-      if (xhr.lengthComputable) {
-        const progressPercentage = Math.round((xhr.loaded / xhr.total) * 100);
-        console.log(`${path} 加载进度: ${progressPercentage}%`);
-      }
-    },
-    // 错误回调
-    (error) => {
-      console.error(`${path} 模型加载错误:`, error);
-      // 尝试下一个路径
-      tryLoadModel(loader, paths, index + 1);
-    }
-  );
-};
-
-// 新增：模型简化函数
-const simplifyModelAsync = (modelObj) => {
-  return new Promise((resolve, reject) => {
-    try {
-      // 使用setTimeout让UI有机会更新并显示加载进度
-      setTimeout(() => {
-        try {
-          // 克隆模型以避免修改原始模型
-          const simplifiedModel = modelObj.clone();
-          const modifier = new SimplifyModifier();
-          let simplificationErrors = 0;
-          
-          // 遍历模型中的所有网格
-          simplifiedModel.traverse((object) => {
-            if (object.isMesh && object.geometry) {
-              // 只处理顶点数量超过阈值的网格
-              const vertexCount = object.geometry.attributes.position.count;
-              if (vertexCount > 100) {
-                try {
-                  console.log(`简化前顶点数: ${vertexCount}`);
-                  
-                  // 检查几何体是否有效，避免处理非索引几何体
-                  if (!object.geometry.index) {
-                    console.warn(`跳过非索引几何体 (${object.name})`);
-                    return;
-                  }
-                  
-                  // 计算要保留的顶点数
-                  const targetCount = Math.max(100, Math.floor(vertexCount * (1 - simplificationRatio.value * 0.5)));
-                  
-                  // 保存原始UV，法线等属性
-                  const hasUV = object.geometry.attributes.uv !== undefined;
-                  const hasNormal = object.geometry.attributes.normal !== undefined;
-                  
-                  // 尝试执行简化
-                  const originalGeometry = object.geometry.clone();
-                  try {
-                    object.geometry = modifier.modify(object.geometry, targetCount);
-                    console.log(`简化后顶点数: ${object.geometry.attributes.position.count}`);
-                  } catch (simplifyError) {
-                    console.warn(`简化网格几何体失败 (${object.name}):`, simplifyError);
-                    // 恢复原始几何体
-                    object.geometry = originalGeometry;
-                    simplificationErrors++;
-                  }
-                  
-                  // 如果有法线但简化后丢失，重新计算
-                  if (hasNormal && !object.geometry.attributes.normal) {
-                    object.geometry.computeVertexNormals();
-                  }
-                  
-                  // UV丢失是常见的，可能需要在材质中处理
-                  if (hasUV && !object.geometry.attributes.uv) {
-                    console.warn("UV坐标在简化过程中丢失，可能影响纹理显示");
-                  }
-                } catch (simplifyError) {
-                  console.warn(`简化网格时出错 (${object.name}):`, simplifyError);
-                  simplificationErrors++;
-                  // 如果简化失败，继续使用原始几何体
-                }
-              }
-            }
-          });
-          
-          if (simplificationErrors > 0) {
-            console.warn(`${simplificationErrors}个网格简化出错，但处理继续进行`);
-          }
-          
-          resolve(simplifiedModel);
-        } catch (err) {
-          console.error("模型简化过程中出现严重错误:", err);
-          // 如果简化过程完全失败，返回原始模型
-          resolve(modelObj.clone());
-        }
-      }, 100);
-    } catch (err) {
-      reject(err);
-    }
-  });
-};
-
-// 处理模型
-const processModel = (modelObj) => {
   try {
-    // Ensure model is not reactive
-    modelObj = markRaw(modelObj);
+    // 显示加载状态
+    loading.value = true;
     
-    const currentScene = nonReactiveObjects.scene;
-    if (!currentScene) {
-      throw new Error("场景未初始化");
-    }
-
-    // 清除旧模型
-    const oldModel = currentScene.getObjectByName("loadedModel");
-    if (oldModel) {
-      currentScene.remove(oldModel);
+    // 清除场景中的现有模型
+    if (model.value) {
+      scene.value.remove(model.value);
+      model.value = null;
     }
     
-    // 设置模型名称
-    modelObj.name = "loadedModel";
+    // 根据文件类型选择合适的加载器
+    let loader;
+    if (url.toLowerCase().endsWith('.gltf') || url.toLowerCase().endsWith('.glb')) {
+      loader = new GLTFLoader();
+    } else if (url.toLowerCase().endsWith('.obj')) {
+      loader = new OBJLoader();
+    } else if (url.toLowerCase().endsWith('.fbx')) {
+      loader = new FBXLoader();
+    } else {
+      throw new Error(`不支持的文件格式: ${url}`);
+    }
     
-    // 计算包围盒
-    const box = markRaw(new THREE.Box3().setFromObject(modelObj));
-    const size = markRaw(new THREE.Vector3());
-    const center = markRaw(new THREE.Vector3());
-    box.getSize(size);
-    box.getCenter(center);
-    
-    // 计算合适的缩放比例
-    const maxDim = Math.max(size.x, size.y, size.z);
-    const scale = maxDim > 0 ? 5 / maxDim : 1;
-    
-    // 设置模型变换
-    modelObj.scale.setScalar(scale);
-    modelObj.position.copy(center).multiplyScalar(-scale);
-    
-    // 确保模型居中显示在场景中
-    const adjustedBox = new THREE.Box3().setFromObject(modelObj);
-    const adjustedCenter = new THREE.Vector3();
-    adjustedBox.getCenter(adjustedCenter);
-    modelObj.position.sub(adjustedCenter);
-    
-    // 清空部件列表
-    partsList.value = [];
-    nonReactiveObjects.originalMaterials.clear();
-    
-    // 新增：实例化材质复用映射
-    const materialCache = new Map();
-    
-    // 遍历模型所有网格并添加金属质感
-    let partId = 0;
-    let totalVertices = 0;
-    let geometryCache = new Map(); // 几何体缓存，用于复用相同的几何体
-    
-    modelObj.traverse((object) => {
-      if (object.isMesh) {
-        // 统计顶点数用于性能评估
-        if (object.geometry.attributes.position) {
-          totalVertices += object.geometry.attributes.position.count;
-        }
-        
-        // 复用几何体：如果几何体相同，直接引用而不是创建新实例
-        const geoKey = object.geometry.uuid;
-        if (!geometryCache.has(geoKey)) {
-          geometryCache.set(geoKey, object.geometry);
-        } else {
-          // 如果该几何体已经存在，使用缓存的实例
-          object.geometry = geometryCache.get(geoKey);
-        }
-        
-        // 为所有网格添加金属质感材质
-        const originalMaterial = object.material;
-        
-        // 获取材质的唯一键（考虑颜色和纹理）
-        const matKey = originalMaterial ? 
-          (originalMaterial.color ? originalMaterial.color.getHex() : 0) + 
-          (originalMaterial.map ? originalMaterial.map.uuid : '')
-          : 'default';
-        
-        // 如果材质已经在缓存中，直接使用
-        if (materialCache.has(matKey)) {
-          object.material = materialCache.get(matKey);
-        } else {
-          // 创建新材质
-          const newMaterial = new THREE.MeshStandardMaterial({
-            color: originalMaterial ? originalMaterial.color : 0x888888,
-            metalness: metalness.value,
-            roughness: roughness.value,
-            envMapIntensity: 1.0,
-            wireframe: showWireframe.value,
-            // 新增：优化性能的材质设置
-            flatShading: true, // 平面着色可以减少一些GPU负担
-            dithering: false, // 关闭抖动
-          });
-          
-          // 保留原始纹理(如果有)
-          if (originalMaterial && originalMaterial.map) {
-            newMaterial.map = originalMaterial.map;
-            newMaterial.map.anisotropy = 4; // 降低各向异性过滤，提高性能
+    // 加载模型
+    const result = await new Promise((resolve, reject) => {
+      loader.load(
+        url,
+        (object) => resolve(object),
+        (xhr) => {
+          if (xhr.lengthComputable) {
+            const percentComplete = (xhr.loaded / xhr.total) * 100;
+            loadingProgress.value = Math.round(percentComplete);
           }
-          
-          // 缓存材质以便复用
-          materialCache.set(matKey, newMaterial);
-          object.material = newMaterial;
+        },
+        (error) => reject(error)
+      );
+    });
+    
+    // 处理不同类型的模型结果
+    if (url.toLowerCase().endsWith('.gltf') || url.toLowerCase().endsWith('.glb')) {
+      model.value = markRaw(result.scene); // 使用markRaw确保模型不被Vue响应式系统代理
+    } else {
+      model.value = markRaw(result); // 使用markRaw确保模型不被Vue响应式系统代理
+    }
+    
+    // 处理模型材质和阴影
+    model.value.traverse((child) => {
+      if (child instanceof THREE.Mesh) {
+        child.castShadow = true;
+        child.receiveShadow = true;
+        
+        // 初始化材质颜色副本
+        if (child.material) {
+          if (Array.isArray(child.material)) {
+            child.material.forEach((material) => {
+              if (material.color) {
+                material.userData.originalColor = material.color.clone();
+              }
+            });
+          } else if (child.material.color) {
+            child.material.userData.originalColor = child.material.color.clone();
+          }
         }
         
-        // 启用阴影 - 根据对象大小决定是否投射阴影，小物体不投射可提高性能
-        const boundingBox = new THREE.Box3().setFromObject(object);
-        const objSize = boundingBox.getSize(new THREE.Vector3());
-        const objVolume = objSize.x * objSize.y * objSize.z;
-        
-        if (objVolume > 0.1) { // 只有较大的对象才投射阴影
-          object.castShadow = true;
-        } else {
-          object.castShadow = false;
-        }
-        object.receiveShadow = true;
-        
-        // 新增：保存原始材质
-        nonReactiveObjects.originalMaterials.set(object.uuid, object.material);
-        
-        // 新增：为每个网格设置唯一ID，并加入部件列表
-        object.userData.partId = partId++;
-        
-        // 获取部件名称
-        const partName = object.name || `部件 ${object.userData.partId}`;
-        
-        // 添加到部件列表
-        const partPosition = new THREE.Vector3();
-        object.getWorldPosition(partPosition);
-        
-        const partBox = new THREE.Box3().setFromObject(object);
-        const partSize = new THREE.Vector3();
-        partBox.getSize(partSize);
-        
-        // 只添加一定大小以上的部件到列表，减少部件数量
-        const partVolume = partSize.x * partSize.y * partSize.z;
-        if (partVolume > 0.01) {
-          partsList.value.push({
-            id: object.userData.partId,
-            name: partName,
-            object: object,
-            position: partPosition,
-            dimensions: `${partSize.x.toFixed(2)} x ${partSize.y.toFixed(2)} x ${partSize.z.toFixed(2)}`,
-            materialType: '金属材质',
-            type: object.userData.type || '标准部件',
-            description: object.userData.description || '这是发电机的标准部件',
-            volume: partVolume.toFixed(3) // 新增部件体积信息
-          });
-        }
+        // 将所有材质转换为MeshStandardMaterial，以便应用金属度和粗糙度
+        upgradeToStandardMaterial(child);
       }
     });
     
-    console.log(`处理完成: 总顶点数${totalVertices}, 部件数${partsList.value.length}`);
-    
-    // 对部件列表进行排序
-    partsList.value.sort((a, b) => a.name.localeCompare(b.name));
-
-    // 添加到场景
-    currentScene.add(modelObj);
-    
-    // 更新包围盒辅助对象
-    const boundingBox = markRaw(new THREE.BoxHelper(modelObj, 0xff0000));
-    boundingBox.name = "modelBoxHelper";
-    boundingBox.visible = showBoundingBox.value;
-    currentScene.add(boundingBox);
-    
-    // 强制渲染一帧
-    const currentRenderer = nonReactiveObjects.renderer;
-    const currentCamera = nonReactiveObjects.camera;
-    if (currentRenderer && currentScene && currentCamera) {
-      currentRenderer.render(currentScene, currentCamera);
+    // 处理不同格式模型的特殊逻辑
+    if (url.toLowerCase().endsWith('.fbx')) {
+      // FBX模型可能需要缩放和位置调整
+      console.log('正在处理FBX模型...');
+      if (!model.value.scale || model.value.scale.x === 0) {
+        // 设置默认缩放
+        model.value.scale.set(0.01, 0.01, 0.01);
+      }
+      
+      // 设置名称，便于后续查找
+      model.value.name = "loadedModel";
+      
+      // 计算模型包围盒
+      const box = new THREE.Box3().setFromObject(model.value);
+      // 将模型定位到场景中央底部
+      if (!box.isEmpty()) {
+        const center = new THREE.Vector3();
+        box.getCenter(center);
+        const size = new THREE.Vector3();
+        box.getSize(size);
+        
+        // 调整位置到坐标系原点
+        model.value.position.x = -center.x;
+        model.value.position.z = -center.z;
+        model.value.position.y = -box.min.y; // 放置在"地面"上
+        
+        console.log('FBX模型尺寸:', size);
+        console.log('FBX模型位置调整为:', model.value.position);
+      }
+    } else {
+      // 其他格式模型的处理
+      model.value.name = "loadedModel";
     }
     
-    modelLoaded.value = true;
-    loadError.value = null;
+    // 添加模型到场景
+    scene.value.add(model.value);
+    // 也将模型添加到nonReactiveObjects中，保证一致性
+    nonReactiveObjects.model = model.value;
     
-    // 保存模型引用
-    nonReactiveObjects.model = modelObj;
-    model.value = modelObj;
+    // 更新包围盒
+    updateBoundingBox();
+    
+    // 自动对焦模型
+    resetView();
+    
+    console.log('模型加载成功:', url);
+    // 设置模型已加载标志
+    modelLoaded.value = true;
     
     // 更新模型信息
-    updateModelInfo(modelObj);
+    updateModelInfo(model.value);
     
-    // 如果部件列表不为空，自动聚焦到第一个部件
-    if (partsList.value.length > 0) {
-      // 延迟聚焦，确保模型已完全加载
-      setTimeout(() => {
-        focusOnPart(partsList.value[0]);
-      }, 1000);
-    }
-    
-    // 清理不再需要的缓存
-    geometryCache.clear();
-    materialCache.clear();
-    
-    // 确保模型在视野内
-    setTimeout(() => {
-      fitCameraToModel(modelObj);
-    }, 500);
-    
-  } catch (err) {
-    console.error("处理模型时出错:", err);
-    loadError.value = `处理模型错误: ${err.message}`;
-    throw err;
+    // 提取模型部件信息
+    extractPartsList(model.value);
+  } catch (error) {
+    console.error('模型加载失败:', error);
+    errorMessage.value = `加载模型失败: ${error.message}`;
+  } finally {
+    loading.value = false;
+    loadingProgress.value = 0;
   }
 };
 
-// 新增：自动调整相机以显示整个模型
-const fitCameraToModel = (modelObj) => {
+// 提取模型部件列表
+const extractPartsList = (modelObj) => {
   if (!modelObj) return;
   
-  // 计算包围盒
-  const box = new THREE.Box3().setFromObject(modelObj);
-  const size = new THREE.Vector3();
-  const center = new THREE.Vector3();
-  box.getSize(size);
-  box.getCenter(center);
+  console.log('开始提取部件信息...');
+  // 清空当前部件列表
+  partsList.value = [];
   
-  // 计算视角距离
-  const maxDim = Math.max(size.x, size.y, size.z);
-  const fov = nonReactiveObjects.camera.fov * (Math.PI / 180);
-  const cameraDistance = Math.abs(maxDim / (2 * Math.tan(fov / 2)));
-  
-  // 设置相机位置和控制器目标
-  const controls = nonReactiveObjects.controls;
-  const camera = nonReactiveObjects.camera;
-  
-  if (controls && camera) {
-    // 设置控制器目标为模型中心
-    controls.target.copy(center);
-    
-    // 计算相机位置
-    const cameraPosition = new THREE.Vector3(
-      center.x,
-      center.y,
-      center.z + cameraDistance * 1.5 // 额外增加1.5倍距离确保全部可见
-    );
-    
-    camera.position.copy(cameraPosition);
-    controls.update();
-  }
-};
-
-// 更新材质
-const updateMaterial = () => {
-  const currentModel = nonReactiveObjects.model;
-  if (!currentModel) return;
-  
-  currentModel.traverse((object) => {
-    if (object.isMesh && object.material) {
-      if (Array.isArray(object.material)) {
-        object.material.forEach(mat => {
-          if (mat.isMeshStandardMaterial) {
-            mat.metalness = metalness.value;
-            mat.roughness = roughness.value;
-            mat.needsUpdate = true;
+  // 遍历模型的所有子对象
+  modelObj.traverse((object) => {
+    // 只处理网格对象
+    if (object instanceof THREE.Mesh) {
+      try {
+        // 生成部件名称（如果没有名称，则使用UUID的一部分）
+        const partName = object.name || `部件-${object.uuid.substring(0, 8)}`;
+        const partType = object.userData.type || "模型部件";
+        const partVolume = object.userData.volume || calculateVolume(object.geometry);
+        
+        // 确保nonReactiveObjects.originalMaterials已初始化
+        if (!nonReactiveObjects.originalMaterials) {
+          nonReactiveObjects.originalMaterials = new Map();
+        }
+        
+        // 保存原始材质，以便后续恢复
+        if (object.material) {
+          // 克隆材质以防止交叉引用
+          if (Array.isArray(object.material)) {
+            const materials = object.material.map(mat => mat.clone());
+            nonReactiveObjects.originalMaterials.set(object.uuid, materials);
+          } else {
+            nonReactiveObjects.originalMaterials.set(object.uuid, object.material.clone());
           }
+        }
+        
+        // 将部件添加到列表中
+        partsList.value.push({
+          id: object.uuid,
+          name: partName,
+          type: partType,
+          materialType: getMaterialType(object.material),
+          dimensions: getObjectDimensions(object),
+          position: object.position.clone(),
+          volume: partVolume,
+          description: object.userData.description || `${partName}是模型的一部分`,
+          object: markRaw(object) // 使用markRaw避免Vue响应式系统处理Three.js对象
         });
-      } else if (object.material.isMeshStandardMaterial) {
-        object.material.metalness = metalness.value;
-        object.material.roughness = roughness.value;
-        object.material.needsUpdate = true;
+        
+        // 在网格对象上添加部件ID引用，便于后续查找
+        object.userData.partId = object.uuid;
+      } catch (error) {
+        console.error(`处理部件 ${object.name || object.uuid} 时出错:`, error);
       }
     }
   });
+  
+  console.log(`部件提取完成，共找到 ${partsList.value.length} 个部件`);
+};
+
+// 更新模型包围盒
+const updateBoundingBox = () => {
+  if (!model.value) return;
+  
+  // 创建包围盒
+  boundingBox.value = new THREE.Box3().setFromObject(model.value);
+  
+  // 添加包围盒辅助对象（调试用）
+  if (debugMode.value && boundingBox.value) {
+    // 移除旧的包围盒辅助对象
+    if (boundingBoxHelper.value) {
+      scene.value.remove(boundingBoxHelper.value);
+    }
+    
+    boundingBoxHelper.value = new THREE.Box3Helper(boundingBox.value, 0xff0000);
+    scene.value.add(boundingBoxHelper.value);
+  }
+};
+
+// 设置剖切平面
+const setClippingPlane = (direction, position = 0) => {
+  if (!scene.value || !renderer.value) return;
+  
+  // 确保渲染器支持剖切平面
+  renderer.value.localClippingEnabled = true;
+  
+  // 清除现有的剖切平面
+  if (clippingPlanes.value.length > 0) {
+    clippingPlanes.value = [];
+  }
+  
+  // 创建新的剖切平面
+  let plane;
+  switch (direction) {
+    case 'x':
+      plane = new THREE.Plane(new THREE.Vector3(1, 0, 0), -position);
+      break;
+    case 'y':
+      plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), -position);
+      break;
+    case 'z':
+      plane = new THREE.Plane(new THREE.Vector3(0, 0, 1), -position);
+      break;
+    default:
+      return;
+  }
+  
+  clippingPlanes.value.push(plane);
+  
+  // 更新模型中所有材质的剖切平面
+  if (model.value) {
+    model.value.traverse((node) => {
+      if (node instanceof THREE.Mesh) {
+        if (Array.isArray(node.material)) {
+          node.material.forEach((material) => {
+            material.clippingPlanes = clippingPlanes.value;
+            material.clipShadows = true;
+            material.needsUpdate = true;
+          });
+        } else {
+          node.material.clippingPlanes = clippingPlanes.value;
+          node.material.clipShadows = true;
+          node.material.needsUpdate = true;
+        }
+      }
+    });
+  }
+  
+  // 如果启用了辅助平面
+  if (showClippingPlaneHelper.value) {
+    // 移除旧的辅助平面
+    if (clippingPlaneHelper.value) {
+      scene.value.remove(clippingPlaneHelper.value);
+    }
+    
+    // 创建新的辅助平面
+    const size = 10;
+    const geometry = new THREE.PlaneGeometry(size, size);
+    const material = new THREE.MeshBasicMaterial({
+      color: 0xff0000,
+      opacity: 0.2,
+      transparent: true,
+      side: THREE.DoubleSide
+    });
+    
+    clippingPlaneHelper.value = new THREE.Mesh(geometry, material);
+    
+    // 根据平面方向设置辅助平面位置和方向
+    switch (direction) {
+      case 'x':
+        clippingPlaneHelper.value.rotation.y = Math.PI / 2;
+        clippingPlaneHelper.value.position.x = position;
+        break;
+      case 'y':
+        clippingPlaneHelper.value.rotation.x = Math.PI / 2;
+        clippingPlaneHelper.value.position.y = position;
+        break;
+      case 'z':
+        clippingPlaneHelper.value.position.z = position;
+        break;
+    }
+    
+    scene.value.add(clippingPlaneHelper.value);
+  }
+};
+
+// 清除剖切平面
+const clearClippingPlanes = () => {
+  if (!scene.value) return;
+  
+  // 清除剖切平面数组
+  clippingPlanes.value = [];
+  
+  // 更新模型中所有材质
+  if (model.value) {
+    model.value.traverse((node) => {
+      if (node instanceof THREE.Mesh) {
+        if (Array.isArray(node.material)) {
+          node.material.forEach((material) => {
+            material.clippingPlanes = [];
+            material.needsUpdate = true;
+          });
+        } else {
+          node.material.clippingPlanes = [];
+          node.material.needsUpdate = true;
+        }
+      }
+    });
+  }
+  
+  // 移除辅助平面
+  if (clippingPlaneHelper.value) {
+    scene.value.remove(clippingPlaneHelper.value);
+    clippingPlaneHelper.value = null;
+  }
+};
+
+// 初始化性能监控
+let performanceMonitor = null;
+
+// onMounted钩子中初始化性能监控
+const initPerformanceMonitor = () => {
+  performanceMonitor = new PerformanceMonitor({
+    targetFPS: 30,
+    criticalFPS: 15,
+    memoryWarningLevel: 450,
+    onFPSUpdate: (fps) => {
+      perfMonitor.fps = fps;
+    },
+    onMemoryUpdate: (memory) => {
+      perfMonitor.memoryUsage = memory;
+    },
+    onQualityChange: (qualityLevel) => {
+      console.log(`质量级别自动调整为: ${qualityLevel.toFixed(2)}`);
+      adjustRenderQuality(qualityLevel);
+    },
+    onThresholdExceeded: (fps, memory) => {
+      console.warn(`性能警告 - FPS: ${fps}, 内存: ${memory}MB`);
+      if (fps < 10) {
+        // 紧急降低渲染质量
+        emergencyQualityReduction();
+      }
+    }
+  });
+  
+  // 启动监控
+  performanceMonitor.start();
+};
+
+// 根据质量级别调整渲染参数
+const adjustRenderQuality = (qualityLevel) => {
+  if (!nonReactiveObjects.renderer) return;
+  
+  try {
+    // 调整像素密度
+    nonReactiveObjects.renderer.setPixelRatio(
+      Math.min(window.devicePixelRatio, 1 + qualityLevel * 0.5)
+    );
+    
+    // 调整阴影质量
+    if (qualityLevel < 0.4) {
+      nonReactiveObjects.renderer.shadowMap.enabled = false;
+    } else {
+      nonReactiveObjects.renderer.shadowMap.enabled = true;
+      nonReactiveObjects.renderer.shadowMap.type = 
+        qualityLevel < 0.7 ? THREE.BasicShadowMap : THREE.PCFShadowMap;
+    }
+    
+    // 更新材质
+    if (nonReactiveObjects.model) {
+      nonReactiveObjects.model.traverse((object) => {
+        if (object.isMesh && object.material) {
+          if (Array.isArray(object.material)) {
+            object.material.forEach(mat => {
+              if (mat.isMeshStandardMaterial) {
+                // 根据质量调整材质参数
+                mat.flatShading = qualityLevel < 0.5;
+                mat.wireframe = showWireframe.value;
+                mat.needsUpdate = true;
+              }
+            });
+          } else if (object.material.isMeshStandardMaterial) {
+            object.material.flatShading = qualityLevel < 0.5;
+            object.material.wireframe = showWireframe.value;
+            object.material.needsUpdate = true;
+          }
+        }
+      });
+    }
+    
+    // 如果质量很低且使用的是高LOD，考虑切换到低LOD
+    if (qualityLevel < 0.3 && nonReactiveObjects.modelManager) {
+      const modelManager = nonReactiveObjects.modelManager;
+      if (modelManager.currentLODLevel === 'HIGH') {
+        modelManager.switchLOD('LOW')
+          .catch(err => console.warn(`无法切换到低LOD: ${err.message}`));
+      }
+    }
+  } catch (e) {
+    console.error("调整渲染质量出错:", e);
+  }
+};
+
+// 紧急降低渲染质量
+const emergencyQualityReduction = () => {
+  try {
+    console.warn("执行紧急质量降级!");
+    
+    // 关闭阴影
+    if (nonReactiveObjects.renderer) {
+      nonReactiveObjects.renderer.shadowMap.enabled = false;
+    }
+    
+    // 最低像素比
+    if (nonReactiveObjects.renderer) {
+      nonReactiveObjects.renderer.setPixelRatio(1.0);
+    }
+    
+    // 使用线框模式
+    showWireframe.value = true;
+    toggleWireframe();
+    
+    // 尝试切换到最低LOD
+    if (nonReactiveObjects.modelManager) {
+      nonReactiveObjects.modelManager
+        .switchLOD('LOW')
+        .catch(err => console.warn(`紧急切换LOD失败: ${err.message}`));
+    }
+    
+    // 隐藏非必要视觉元素
+    showAxes.value = false;
+    toggleAxes();
+    showGrid.value = false;
+    toggleGrid();
+    
+    // 如果性能监控存在，设置最低质量级别
+    if (performanceMonitor) {
+      performanceMonitor.setQualityLevel(0.1);
+    }
+  } catch (e) {
+    console.error("紧急质量降级失败:", e);
+  }
 };
 
 // 清理模型资源
@@ -980,42 +1005,42 @@ const cleanupModel = () => {
         }
         
         // 清除拆解相关的属性
-        if (object.position_0) {
-          object.position_0 = null;
+        object.position_0 = null;
+        object.decomposeDirection = null;
+        
+        // 显式销毁几何体
+        if (object.geometry) {
+          object.geometry.dispose();
+          object.geometry = null;
         }
-        if (object.decomposeDirection) {
-          object.decomposeDirection = null;
+        
+        // 显式销毁材质
+        if (object.material) {
+          if (Array.isArray(object.material)) {
+            object.material.forEach((material) => {
+              disposeMaterial(material);
+            });
+            object.material.length = 0; // 清空数组
+          } else {
+            disposeMaterial(object.material);
+            object.material = null;
+          }
         }
       }
     });
     
     // 从场景中移除
     currentScene.remove(oldModel);
-    
-    // 递归处理模型以释放内存
-    oldModel.traverse((object) => {
-      if (object.geometry) {
-        object.geometry.dispose();
-        object.geometry = null;
-      }
-      
-      if (object.material) {
-        if (Array.isArray(object.material)) {
-          object.material.forEach((material) => {
-            disposeMaterial(material);
-          });
-          object.material.length = 0; // 清空数组
-        } else {
-          disposeMaterial(object.material);
-          object.material = null;
-        }
-      }
-    });
   }
 
   const oldBoxHelper = currentScene.getObjectByName("modelBoxHelper");
   if (oldBoxHelper) {
     currentScene.remove(oldBoxHelper);
+  }
+  
+  // 强制执行一次渲染
+  if (nonReactiveObjects.renderer && nonReactiveObjects.camera) {
+    nonReactiveObjects.renderer.render(currentScene, nonReactiveObjects.camera);
   }
   
   // 清空部件列表
@@ -1036,6 +1061,8 @@ const cleanupModel = () => {
   // 提示垃圾回收
   if (oldModel) {
     console.log('已清理模型资源，等待垃圾回收');
+    // 请求浏览器执行垃圾回收（注意：这只是一个提示，浏览器可能不会立即执行）
+    if (window.gc) window.gc();
   }
 };
 
@@ -1170,7 +1197,8 @@ const cleanup = () => {
       mouse: { x: 0, y: 0 },
       originalMaterials: new Map(),
       intersectMeshes: null,
-      lastModelUpdate: null
+      lastModelUpdate: null,
+      modelManager: null,
     });
     
     // 清空部件列表和状态
@@ -1358,71 +1386,96 @@ const onMouseClick = () => {
 
 // 新增：检查射线与模型的交点
 const checkIntersection = () => {
-  try {
-    if (!nonReactiveObjects.raycaster || !nonReactiveObjects.model || !modelLoaded.value) return;
+  if (!nonReactiveObjects.raycaster || !nonReactiveObjects.model || !modelLoaded.value) return;
+  
+  const raycaster = nonReactiveObjects.raycaster;
+  const mouse = nonReactiveObjects.mouse;
+  const camera = nonReactiveObjects.camera;
+  
+  // 更新射线
+  raycaster.setFromCamera(mouse, camera);
+  
+  // 收集可交互网格
+  let meshes = nonReactiveObjects.intersectMeshes;
+  
+  // 如果meshes不存在或模型已更改，重新收集
+  if (!meshes || nonReactiveObjects.lastModelUpdate !== nonReactiveObjects.model.uuid) {
+    meshes = [];
+    nonReactiveObjects.model.traverse((object) => {
+      if (object.isMesh && object.geometry) {
+        meshes.push(object);
+      }
+    });
+    nonReactiveObjects.intersectMeshes = meshes;
+    nonReactiveObjects.lastModelUpdate = nonReactiveObjects.model.uuid;
+  }
+  
+  // 如果没有网格，退出
+  if (meshes.length === 0) return;
+  
+  // 计算射线与对象的交点
+  const intersects = raycaster.intersectObjects(meshes, false);
+  
+  if (intersects.length > 0) {
+    const firstHit = intersects[0].object;
     
-    const raycaster = nonReactiveObjects.raycaster;
-    const mouse = nonReactiveObjects.mouse;
-    const camera = nonReactiveObjects.camera;
-    
-    if (!raycaster || !mouse || !camera) return;
-    
-    // 更新射线位置
-    raycaster.setFromCamera(mouse, camera);
-    
-    // 新增：优化 - 设置射线检测阈值，过滤掉距离远的物体，提高性能
-    raycaster.params.Line.threshold = 0.1;
-    raycaster.params.Points.threshold = 0.1;
-    
-    // 优化：不每次都遍历所有网格，使用预先缓存的数组
-    let meshes = nonReactiveObjects.intersectMeshes;
-    
-    // 如果缓存不存在或模型已更改，重建缓存
-    if (!meshes || nonReactiveObjects.lastModelUpdate !== nonReactiveObjects.model.uuid) {
-      meshes = [];
-      nonReactiveObjects.model.traverse((object) => {
-        if (object.isMesh && object.visible && object.userData.partId !== undefined) {
-          meshes.push(object);
-        }
-      });
-      nonReactiveObjects.intersectMeshes = meshes;
-      nonReactiveObjects.lastModelUpdate = nonReactiveObjects.model.uuid;
-    }
-    
-    // 检查meshes是否为空数组
-    if (!meshes || meshes.length === 0) return;
-    
-    // 计算射线与网格的交点
-    const intersects = raycaster.intersectObjects(meshes);
-    
-    // 重置所有悬停部件的材质
-    if (hoveredPart.value && hoveredPart.value.object) {
-      resetMaterial(hoveredPart.value.object);
-      hoveredPart.value = null;
-    }
-    
-    // 如果有交点，设置悬停部件，并应用高亮材质
-    if (intersects.length > 0) {
-      const intersectedObject = intersects[0].object;
-      if (!intersectedObject || !intersectedObject.userData) return;
-      
-      const partId = intersectedObject.userData.partId;
-      if (partId === undefined) return;
-      
-      // 找到对应的部件
-      const part = partsList.value.find(p => p.id === partId);
-      if (part) {
-        hoveredPart.value = part;
-        
-        // 如果当前没有选中部件，或者悬停的部件不是选中的部件，则应用高亮材质
-        if (!selectedPart.value || selectedPart.value.id !== part.id) {
-          applyMaterial(intersectedObject, highlightMaterial);
+    // 如果悬停对象已经变化
+    if (!hoveredPart.value || hoveredPart.value.object !== firstHit) {
+      // 清除之前的悬停效果
+      if (hoveredPart.value && hoveredPart.value.object && hoveredPart.value.object.isMesh) {
+        const prevObject = hoveredPart.value.object;
+        // 只有当前选中部件不是该对象时，才恢复原始材质
+        if (!selectedPart.value || selectedPart.value.object !== prevObject) {
+          try {
+            restoreOriginalMaterial(prevObject);
+          } catch (error) {
+            console.error("恢复材质错误:", error);
+          }
         }
       }
+      
+      // 设置新的悬停对象
+      try {
+        const partName = firstHit.name || `部件-${firstHit.id}`;
+        const partType = firstHit.userData.type || "未知类型";
+        const partVolume = firstHit.userData.volume || calculateVolume(firstHit.geometry);
+        
+        // 使用 markRaw 确保 firstHit 不会被 Vue 代理
+        hoveredPart.value = {
+          id: firstHit.uuid,
+          name: partName,
+          type: partType,
+          materialType: getMaterialType(firstHit.material),
+          dimensions: getObjectDimensions(firstHit),
+          position: firstHit.position.clone(),
+          volume: partVolume,
+          description: firstHit.userData.description || "无相关描述",
+          object: markRaw(firstHit) // 防止对象进入Vue的响应式系统
+        };
+        
+        // 只有当前选中部件不是该对象时，才应用高亮材质
+        if (!selectedPart.value || selectedPart.value.object !== firstHit) {
+          applyHighlightMaterial(firstHit);
+        }
+      } catch (error) {
+        console.error("设置悬停对象错误:", error);
+        hoveredPart.value = null;
+      }
     }
-  } catch (err) {
-    console.error("检查交点时出错:", err);
-    // 出错时不影响主程序运行
+  } else if (hoveredPart.value) {
+    // 清除悬停效果
+    try {
+      const prevObject = hoveredPart.value.object;
+      if (prevObject && prevObject.isMesh) {
+        // 只有当前选中部件不是该对象时，才恢复原始材质
+        if (!selectedPart.value || selectedPart.value.object !== prevObject) {
+          restoreOriginalMaterial(prevObject);
+        }
+      }
+    } catch (error) {
+      console.error("清除悬停效果错误:", error);
+    }
+    hoveredPart.value = null;
   }
 };
 
@@ -1795,13 +1848,23 @@ const reloadModel = () => {
 onMounted(() => {
   console.log("组件挂载，开始初始化");
   // 检查WebGL兼容性
-  checkWebGLCompatibility();
+  if (!checkWebGLCompatibility()) {
+    return; // 如果WebGL不支持，直接返回
+  }
   
+  // 初始化性能监控
+  initPerformanceMonitor();
+  
+  // 初始化Three.js
   initThreeJS();
+  
+  // 加载模型
   loadModel();
+  
+  // 添加窗口事件监听
   window.addEventListener("resize", onWindowResize);
   
-  // 修复：使用更通用的方法监听设备像素比变化
+  // 使用更通用的方法监听设备像素比变化
   const mediaQueryList = window.matchMedia(`(resolution: ${window.devicePixelRatio}dppx)`);
   if (mediaQueryList.addEventListener) {
     mediaQueryList.addEventListener('change', onDevicePixelRatioChange);
@@ -1822,6 +1885,18 @@ onBeforeUnmount(() => {
     container.removeEventListener('click', onMouseClick);
   }
   
+  // 停止性能监控
+  if (performanceMonitor) {
+    performanceMonitor.stop();
+    performanceMonitor = null;
+  }
+  
+  // 终止Web Worker
+  if (modelWorker) {
+    modelWorker.terminate();
+    modelWorker = null;
+  }
+  
   // 修复：移除像素比监听器，兼容不同浏览器
   const mediaQueryList = window.matchMedia(`(resolution: ${window.devicePixelRatio}dppx)`);
   if (mediaQueryList.removeEventListener) {
@@ -1837,7 +1912,7 @@ onBeforeUnmount(() => {
 const onDevicePixelRatioChange = () => {
   const currentRenderer = nonReactiveObjects.renderer;
   if (currentRenderer) {
-    currentRenderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    currentRenderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
   }
 };
 
@@ -1873,13 +1948,484 @@ const checkWebGLCompatibility = () => {
 // 重试加载模型
 const retryLoading = () => {
   console.log("重试加载模型");
-  // 清理现有资源
-  cleanup();
-  // 重新初始化
-  nextTick(() => {
-    initThreeJS();
-    loadModel();
+  // 强制重置状态和清理资源
+  loadingProgress.value = 0;
+  loadError.value = null;
+  modelLoaded.value = false;
+  
+  // 确保清理现有资源
+  try {
+    cleanup();
+  } catch (e) {
+    console.warn("清理资源时出错:", e);
+    // 继续尝试重新加载，即使清理失败
+  }
+  
+  // 确保内存释放
+  if (window.gc) {
+    try {
+      window.gc();
+    } catch (e) {
+      console.warn("触发垃圾回收时出错:", e);
+    }
+  }
+  
+  // 短暂延迟后重新初始化，给予浏览器时间释放资源
+  setTimeout(() => {
+    try {
+      // 如果之前使用高质量渲染但失败，则尝试低质量
+      if (!useSimplifiedModel.value) {
+        useSimplifiedModel.value = true;
+        simplificationRatio.value = 0.8;
+        console.log("启用模型简化，设置简化率为:", simplificationRatio.value);
+      }
+      
+      // 降低渲染质量
+      if (performanceMonitor) {
+        performanceMonitor.setQualityLevel(0.4);
+      }
+      
+      // 重新初始化Three.js
+      initThreeJS();
+      
+      // 延迟加载模型，等待场景初始化完成
+      setTimeout(() => {
+        loadModel();
+      }, 500);
+    } catch (e) {
+      console.error("重试加载模型时出错:", e);
+      loadError.value = "重试加载失败: " + e.message;
+    }
+  }, 1000);
+};
+
+// 渲染场景
+const renderScene = () => {
+  // 使用非响应式对象引用，避免代理问题
+  const currentRenderer = nonReactiveObjects.renderer;
+  const currentScene = nonReactiveObjects.scene;
+  const currentCamera = nonReactiveObjects.camera;
+  
+  if (!currentRenderer || !currentScene || !currentCamera) return;
+  
+  // 更新性能监视器
+  if (stats.value) stats.value.begin();
+  
+  // 更新控制器
+  if (nonReactiveObjects.controls) nonReactiveObjects.controls.update();
+  
+  // 渲染场景
+  currentRenderer.render(currentScene, currentCamera);
+  
+  // 结束性能监视
+  if (stats.value) stats.value.end();
+  
+  // 请求下一帧
+  requestAnimationFrame(renderScene);
+};
+
+// 聚焦到对象
+const focusOnObject = (object) => {
+  if (!camera.value || !controls.value || !object) return;
+  
+  try {
+    // 计算包围盒
+    const box = new THREE.Box3().setFromObject(object);
+    const size = new THREE.Vector3();
+    const center = new THREE.Vector3();
+    
+    box.getSize(size);
+    box.getCenter(center);
+    
+    // 确保包围盒有效
+    if (!isFinite(size.length()) || size.length() === 0) {
+      console.warn('包围盒无效，无法聚焦');
+      return;
+    }
+    
+    // 计算适当的距离
+    const maxDim = Math.max(size.x, size.y, size.z);
+    const fov = camera.value.fov * (Math.PI / 180);
+    const cameraDistance = (maxDim / 2) / Math.tan(fov / 2);
+    
+    // 设置相机位置
+    const direction = new THREE.Vector3(1, 1, 1).normalize();
+    const position = center.clone().add(direction.multiplyScalar(cameraDistance * 1.5));
+    
+    // 设置相机和控制器
+    camera.value.position.copy(position);
+    camera.value.lookAt(center);
+    camera.value.updateProjectionMatrix();
+    
+    // 设置控制器目标
+    controls.value.target.copy(center);
+    controls.value.update();
+    
+    console.log('摄像机聚焦到对象，距离:', cameraDistance);
+  } catch (error) {
+    console.error('聚焦对象时出错:', error);
+  }
+};
+
+// 重置场景视图
+const resetView = () => {
+  const currentScene = nonReactiveObjects.scene;
+  const currentCamera = nonReactiveObjects.camera;
+  const currentControls = nonReactiveObjects.controls;
+  
+  if (!currentScene || !currentCamera || !currentControls || !boundingBox.value || !model.value) {
+    console.warn('无法重置视图：缺少必要的组件');
+    return;
+  }
+  
+  // 计算模型的边界盒
+  const box = boundingBox.value.clone();
+  
+  // 如果边界盒无效，直接返回
+  if (box.isEmpty() || 
+      !isFinite(box.min.x) || !isFinite(box.min.y) || !isFinite(box.min.z) || 
+      !isFinite(box.max.x) || !isFinite(box.max.y) || !isFinite(box.max.z)) {
+    console.warn('模型边界盒无效');
+    return;
+  }
+  
+  // 计算边界盒的中心和尺寸
+  const center = new THREE.Vector3();
+  box.getCenter(center);
+  
+  const size = new THREE.Vector3();
+  box.getSize(size);
+  
+  // 计算模型的最大尺寸
+  const maxDim = Math.max(size.x, size.y, size.z);
+  
+  // 如果尺寸过小，设置一个最小值
+  const minSize = 0.01;
+  const adjustedMaxDim = Math.max(maxDim, minSize);
+  
+  // 计算相机距离
+  // 使用相机的视场角计算所需的距离
+  const fov = currentCamera.fov * (Math.PI / 180);
+  const distance = adjustedMaxDim / (2 * Math.tan(fov / 2));
+  
+  // 为了确保完全看到模型，增加一些边距
+  const padding = 1.5;
+  
+  // 设置相机位置
+  // 从模型中心向外偏移到合适的位置
+  currentCamera.position.set(
+    center.x + distance * padding,
+    center.y + distance * padding,
+    center.z + distance * padding
+  );
+  
+  // 让相机看向模型中心
+  currentCamera.lookAt(center);
+  
+  // 重置轨道控制器的目标为模型中心
+  currentControls.target.copy(center);
+  currentControls.update();
+  
+  // 让场景渲染一帧以应用更改
+  renderScene();
+};
+
+// 根据颜色选择模型部件
+const selectPartsByColor = (color) => {
+  if (!model.value) return;
+  
+  const selectedParts = [];
+  const colorHex = color instanceof THREE.Color ? color.getHex() : new THREE.Color(color).getHex();
+  
+  model.value.traverse((node) => {
+    if (node instanceof THREE.Mesh) {
+      let matchFound = false;
+      
+      if (Array.isArray(node.material)) {
+        // 材质数组的情况
+        node.material.forEach((material) => {
+          if (material.color && material.color.getHex() === colorHex) {
+            matchFound = true;
+            highlightModelMaterial(material);
+          }
+        });
+      } else if (node.material && node.material.color) {
+        // 单一材质的情况
+        if (node.material.color.getHex() === colorHex) {
+          matchFound = true;
+          highlightModelMaterial(node.material);
+        }
+      }
+      
+      if (matchFound) {
+        selectedParts.push(node);
+      }
+    }
   });
+  
+  return selectedParts;
+};
+
+// 高亮显示选中的部件
+const highlightModelMaterial = (material) => {
+  // 存储原始颜色（如果还没有存储）
+  if (!material.userData.originalColor) {
+    material.userData.originalColor = material.color.clone();
+  }
+  
+  // 应用高亮效果（增加发光效果）
+  material.emissive = new THREE.Color(0x333333);
+  material.emissiveIntensity = 0.5;
+  material.needsUpdate = true;
+};
+
+// 清除所有高亮效果
+const clearHighlights = () => {
+  if (!model.value) return;
+  
+  model.value.traverse((node) => {
+    if (node instanceof THREE.Mesh) {
+      if (Array.isArray(node.material)) {
+        node.material.forEach((material) => {
+          restoreOriginalMaterial(material);
+        });
+      } else if (node.material) {
+        restoreOriginalMaterial(node.material);
+      }
+    }
+  });
+};
+
+// 恢复材质的原始颜色
+const restoreOriginalMaterial = (obj) => {
+  try {
+    // 如果传入的是mesh对象
+    if (obj && obj.isMesh) {
+      const originalMaterial = nonReactiveObjects.originalMaterials.get(obj.uuid);
+      if (originalMaterial) {
+        obj.material = originalMaterial;
+        nonReactiveObjects.originalMaterials.delete(obj.uuid);
+        return;
+      }
+    }
+    
+    // 如果传入的是材质对象或者没有找到原始材质，尝试直接修改材质
+    const material = obj.isMesh ? obj.material : obj;
+    if (material && material.userData && material.userData.originalColor) {
+      material.emissive = new THREE.Color(0x000000);
+      material.emissiveIntensity = 0;
+      material.needsUpdate = true;
+    }
+  } catch (error) {
+    console.error("恢复原始材质错误:", error);
+  }
+};
+
+// 拍摄当前视图截图
+const takeScreenshot = () => {
+  if (!renderer.value) return null;
+  
+  // 确保场景已渲染
+  renderScene();
+  
+  // 创建截图
+  const dataURL = renderer.value.domElement.toDataURL('image/png');
+  return dataURL;
+};
+
+// 获取材质类型
+const getMaterialType = (material) => {
+  if (!material) return "未知材质";
+  
+  if (Array.isArray(material)) {
+    // 如果是材质数组，返回第一个材质的类型
+    if (material.length === 0) return "未知材质";
+    return getMaterialType(material[0]);
+  }
+  
+  if (material.isMeshStandardMaterial) return "PBR标准材质";
+  if (material.isMeshPhysicalMaterial) return "PBR物理材质";
+  if (material.isMeshPhongMaterial) return "Phong材质";
+  if (material.isMeshLambertMaterial) return "Lambert材质";
+  if (material.isMeshBasicMaterial) return "基础材质";
+  if (material.isShaderMaterial) return "着色器材质";
+  
+  return "其他材质";
+};
+
+// 获取对象尺寸
+const getObjectDimensions = (object) => {
+  if (!object) return "未知尺寸";
+  
+  try {
+    // 创建包围盒
+    const box = new THREE.Box3().setFromObject(object);
+    // 计算尺寸
+    const size = new THREE.Vector3();
+    box.getSize(size);
+    
+    // 格式化尺寸数据
+    return `${size.x.toFixed(2)} x ${size.y.toFixed(2)} x ${size.z.toFixed(2)}`;
+  } catch (error) {
+    console.error("计算对象尺寸出错:", error);
+    return "计算错误";
+  }
+};
+
+// 计算几何体体积
+const calculateVolume = (geometry) => {
+  if (!geometry) return 0;
+  
+  try {
+    // 如果是BufferGeometry
+    if (geometry.isBufferGeometry) {
+      // 获取位置属性
+      const positionAttribute = geometry.getAttribute('position');
+      if (!positionAttribute) return 0;
+      
+      // 获取索引属性
+      const indexAttribute = geometry.getIndex();
+      
+      let volume = 0;
+      
+      // 如果有索引属性
+      if (indexAttribute) {
+        const indices = indexAttribute.array;
+        const positions = positionAttribute.array;
+        
+        // 遍历所有三角形
+        for (let i = 0; i < indices.length; i += 3) {
+          const i0 = indices[i] * 3;
+          const i1 = indices[i+1] * 3;
+          const i2 = indices[i+2] * 3;
+          
+          // 创建三个顶点
+          const v0 = new THREE.Vector3(positions[i0], positions[i0+1], positions[i0+2]);
+          const v1 = new THREE.Vector3(positions[i1], positions[i1+1], positions[i1+2]);
+          const v2 = new THREE.Vector3(positions[i2], positions[i2+1], positions[i2+2]);
+          
+          // 计算三角形体积
+          volume += calculateTriangleVolume(v0, v1, v2);
+        }
+      } else {
+        // 如果没有索引属性，直接使用顶点数据
+        const positions = positionAttribute.array;
+        
+        // 遍历所有三角形
+        for (let i = 0; i < positions.length; i += 9) {
+          // 创建三个顶点
+          const v0 = new THREE.Vector3(positions[i], positions[i+1], positions[i+2]);
+          const v1 = new THREE.Vector3(positions[i+3], positions[i+4], positions[i+5]);
+          const v2 = new THREE.Vector3(positions[i+6], positions[i+7], positions[i+8]);
+          
+          // 计算三角形体积
+          volume += calculateTriangleVolume(v0, v1, v2);
+        }
+      }
+      
+      // 返回绝对值（体积应该是正数）
+      return Math.abs(volume);
+    }
+    
+    // 其他类型的几何体
+    return 0;
+  } catch (error) {
+    console.error("计算几何体体积出错:", error);
+    return 0;
+  }
+};
+
+// 计算三角形体积（相对于原点）
+const calculateTriangleVolume = (v0, v1, v2) => {
+  const v01 = new THREE.Vector3().subVectors(v1, v0);
+  const v02 = new THREE.Vector3().subVectors(v2, v0);
+  const cross = new THREE.Vector3().crossVectors(v01, v02);
+  
+  // 体积 = 1/6 * (v0 · (v1 × v2))
+  return v0.dot(cross) / 6.0;
+};
+
+// 将材质升级为MeshStandardMaterial
+const upgradeToStandardMaterial = (meshObject) => {
+  if (!meshObject || !meshObject.isMesh) return;
+  
+  try {
+    // 处理材质数组
+    if (Array.isArray(meshObject.material)) {
+      const newMaterials = [];
+      
+      meshObject.material.forEach((mat, index) => {
+        // 如果已经是MeshStandardMaterial，则只更新参数
+        if (mat.isMeshStandardMaterial) {
+          mat.metalness = metalness.value;
+          mat.roughness = roughness.value;
+          newMaterials.push(mat);
+        } else {
+          // 创建新的MeshStandardMaterial
+          const newMat = new THREE.MeshStandardMaterial({
+            color: mat.color ? mat.color.clone() : new THREE.Color(0xcccccc),
+            map: mat.map,
+            normalMap: mat.normalMap,
+            aoMap: mat.aoMap,
+            aoMapIntensity: mat.aoMapIntensity,
+            emissive: mat.emissive ? mat.emissive.clone() : new THREE.Color(0x000000),
+            emissiveMap: mat.emissiveMap,
+            emissiveIntensity: mat.emissiveIntensity || 1,
+            metalness: metalness.value,
+            roughness: roughness.value,
+            transparent: mat.transparent,
+            opacity: mat.opacity,
+            side: mat.side
+          });
+          
+          // 如果是线框，保持线框状态
+          if (showWireframe.value) {
+            newMat.wireframe = true;
+          }
+          
+          newMaterials.push(newMat);
+        }
+      });
+      
+      meshObject.material = newMaterials;
+    } 
+    // 处理单个材质
+    else if (meshObject.material) {
+      const mat = meshObject.material;
+      
+      // 如果已经是MeshStandardMaterial，则只更新参数
+      if (mat.isMeshStandardMaterial) {
+        mat.metalness = metalness.value;
+        mat.roughness = roughness.value;
+      } else {
+        // 创建新的MeshStandardMaterial
+        const newMat = new THREE.MeshStandardMaterial({
+          color: mat.color ? mat.color.clone() : new THREE.Color(0xcccccc),
+          map: mat.map,
+          normalMap: mat.normalMap,
+          aoMap: mat.aoMap,
+          aoMapIntensity: mat.aoMapIntensity,
+          emissive: mat.emissive ? mat.emissive.clone() : new THREE.Color(0x000000),
+          emissiveMap: mat.emissiveMap,
+          emissiveIntensity: mat.emissiveIntensity || 1,
+          metalness: metalness.value,
+          roughness: roughness.value,
+          transparent: mat.transparent,
+          opacity: mat.opacity,
+          side: mat.side
+        });
+        
+        // 如果是线框，保持线框状态
+        if (showWireframe.value) {
+          newMat.wireframe = true;
+        }
+        
+        meshObject.material = newMat;
+      }
+    }
+  } catch (error) {
+    console.error('升级材质时出错:', error);
+  }
 };
 </script>
 
