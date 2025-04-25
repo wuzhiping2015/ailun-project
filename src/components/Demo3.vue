@@ -482,7 +482,7 @@ const loadModel = () => {
   loadError.value = null;
   loadingProgress.value = 0;
   
-  console.log("开始加载阀门.gltf模型，当前路径：", window.location.href);
+  console.log("开始加载K60发电机.gltf模型，当前路径：", window.location.href);
   
   // 清理旧模型资源
   cleanupModel();
@@ -507,23 +507,28 @@ const loadModel = () => {
   
   // 添加DRACO压缩支持
   const dracoLoader = new DRACOLoader();
-  dracoLoader.setDecoderPath('https://www.gstatic.com/draco/versioned/decoders/1.5.6/');
+  // 修改解码器路径，使用相对路径指向public下的draco文件夹
+  dracoLoader.setDecoderPath('/draco/');
+  // 改为使用兼容性更好的JS解码器
   dracoLoader.setDecoderConfig({ type: 'js' });
+  // 预加载解码器文件，确保解码器先加载完成
+  dracoLoader.preload();
+  
   loader.setDRACOLoader(dracoLoader);
 
   // 尝试多种可能的路径
   const possiblePaths = [
-    './阀门.gltf',
-    '/阀门.gltf',
-    '阀门.gltf',
-    '/public/阀门.gltf',
-    '../public/阀门.gltf',
+    './K60发电机.gltf',
+    '/K60发电机.gltf',
+    'K60发电机.gltf',
+    '/public/K60发电机.gltf',
+    '../public/K60发电机.gltf',
     // 添加带时间戳的URL，避免缓存问题
-    `/阀门.gltf?t=${Date.now()}`,
+    `/K60发电机.gltf?t=${Date.now()}`,
     // 添加绝对路径
-    `${window.location.origin}/阀门.gltf`,
+    `${window.location.origin}/K60发电机.gltf`,
     // 尝试加载其他可用模型
-    '/阀门.gltf',
+    '/K60发电机.gltf',
     '/PrimaryIonDrive.glb'
   ];
   
