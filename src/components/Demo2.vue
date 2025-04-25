@@ -1009,7 +1009,7 @@ export default defineComponent({
 <style scoped>
 .model-container {
   width: 100%;
-  height: 600px;
+  height: 100%;
   position: relative;
   background-color: #222;
   overflow: hidden;
