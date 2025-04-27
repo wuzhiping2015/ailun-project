@@ -1,41 +1,38 @@
 ﻿<template>
   <div class="app-container">
     <div class="nav-menu">
-      <!-- <button :class="{ active: currentView === 'demo' }" @click="currentView = 'demo'">原始Demo</button> -->
-      <button :class="{ active: currentView === 'demo2' }" @click="currentView = 'demo2'">3D模型查看器</button>
-      <button :class="{ active: currentView === 'demo3' }" @click="currentView = 'demo3'">阀门金属材质</button>
+      <router-link to="/Demo" class="nav-button">模型查看器</router-link>
+      <router-link to="/Demo2" class="nav-button">模型查看器2</router-link>
+      <router-link to="/model-viewer" class="nav-button">3D模型查看器</router-link>
+      <router-link to="/screenshots" class="nav-button">截图管理</router-link>
     </div>
     <div class="content-container">
-      <component :is="currentComponent" />
+      <router-view />
     </div>
+    
+    <!-- 全局通知组件 -->
+    <NotificationToast />
   </div>
 </template>
 
-<script>
-import Demo from './components/Demo.vue'
-import Demo2 from './components/Demo2.vue'
-import Demo3 from './components/Demo3.vue'
+<script setup>
+// 使用组合式API
+import { useUIStore } from './stores/uiStore';
+import { onMounted } from 'vue';
+import NotificationToast from './components/NotificationToast.vue';
 
-export default {
-  name: 'App',
-  components: {
-    Demo,
-    Demo2,
-    Demo3
-  },
-  data() {
-    return {
-      currentView: 'demo3'
-    }
-  },
-  computed: {
-    currentComponent() {
-      if (this.currentView === 'demo') return 'Demo';
-      if (this.currentView === 'demo2') return 'Demo2';
-      return 'Demo3';
-    }
-  }
-}
+// 初始化UI存储
+const uiStore = useUIStore();
+
+// 组件挂载时初始化UI状态
+onMounted(() => {
+  uiStore.initStore();
+  
+  // 监听窗口大小变化
+  window.addEventListener('resize', () => {
+    uiStore.updateViewportSize(window.innerWidth, window.innerHeight);
+  });
+});
 </script>
 
 <style>
@@ -47,18 +44,22 @@ html, body {
   font-family: Arial, sans-serif;
 }
 
+#app {
+  height: 100vh;
+}
+
 .app-container {
   display: flex;
   flex-direction: column;
-  height: 100vh;
-  overflow: hidden; /* 防止出现滚动条 */
+  height: 100%;
+  overflow: hidden;
 }
 
 .content-container {
   flex: 1;
   display: flex;
   flex-direction: column;
-  overflow: hidden; /* 防止内容溢出 */
+  overflow: hidden;
 }
 
 .nav-menu {
@@ -68,7 +69,7 @@ html, body {
   gap: 10px;
 }
 
-.nav-menu button {
+.nav-button {
   padding: 8px 16px;
   border: none;
   background: #555;
@@ -76,13 +77,16 @@ html, body {
   border-radius: 4px;
   cursor: pointer;
   font-size: 14px;
+  text-decoration: none;
+  display: inline-block;
+  transition: background-color 0.2s;
 }
 
-.nav-menu button:hover {
+.nav-button:hover {
   background: #777;
 }
 
-.nav-menu button.active {
+.router-link-active {
   background: #4a90e2;
 }
 </style>

@@ -11,8 +11,11 @@
   "dependencies": {
     "@types/three": "^0.175.0",
     "element-plus": "^2.7.4",
+    "pinia": "^3.0.2",
     "three": "^0.150.0",
-    "vue": "^3.4.21"
+    "uuid": "^11.1.0",
+    "vue": "^3.4.21",
+    "vue-router": "^4.5.0"
   },
   "devDependencies": {
     "@vitejs/plugin-vue": "^5.0.4",
