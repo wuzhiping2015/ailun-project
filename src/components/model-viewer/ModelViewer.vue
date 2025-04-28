@@ -164,6 +164,10 @@ export default {
     height: {
       type: [String, Number],
       default: '100%'
+    },
+    showControls: {
+      type: Boolean,
+      default: true
     }
   },
   
