@@ -547,13 +547,6 @@ function restoreMesh(mesh) {
 
 // 多选高亮与拆解
 function handleMeshSelectMulti(mesh) {
-  // 高亮
-  if (mesh && mesh.isMesh) {
-    if (!meshOriginalMaterialMap.has(mesh)) {
-      meshOriginalMaterialMap.set(mesh, mesh.material);
-    }
-    mesh.material = highlightMaterial;
-  }
   // 拆解
   decomposeMesh(mesh);
   // 列表同步高亮
@@ -578,18 +571,10 @@ function handleMeshSelect(mesh) {
   // 还原所有已选部件
   selectedMeshes.value.forEach((m) => {
     restoreMesh(m);
-    if (meshOriginalMaterialMap.has(m))
-      m.material = meshOriginalMaterialMap.get(m);
+    if (meshOriginalMaterialMap.has(m)) m.material = meshOriginalMaterialMap.get(m);
   });
   selectedMeshes.value = [mesh];
   selectedMesh.value = mesh;
-  // 设置高亮
-  if (mesh && mesh.isMesh) {
-    if (!meshOriginalMaterialMap.has(mesh)) {
-      meshOriginalMaterialMap.set(mesh, mesh.material);
-    }
-    mesh.material = highlightMaterial;
-  }
   // 弹出详情面板
   showDetailPanel.value = true;
   // 相机平滑聚焦
