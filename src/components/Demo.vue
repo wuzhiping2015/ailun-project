@@ -5,42 +5,87 @@
       <el-collapse v-model="activeNames">
         <el-collapse-item title="选择模型" name="1">
           {{ meshNameIndex }}
-          <el-button :disabled="modelLoading" @click="handleModelButtonClick(0)">模型1</el-button>
-          <el-button :disabled="modelLoading" @click="handleModelButtonClick(1)">模型2</el-button>
-          <el-button :disabled="modelLoading" @click="handleModelButtonClick(2)">模型3</el-button>
-          <el-button :disabled="modelLoading" @click="handleModelButtonClick(3)">模型4</el-button>
-          <el-button :disabled="modelLoading" @click="handleModelButtonClick(4)">模型5</el-button>
+          <el-button :disabled="modelLoading" @click="handleModelButtonClick(0)"
+            >模型1</el-button
+          >
+          <el-button :disabled="modelLoading" @click="handleModelButtonClick(1)"
+            >模型2</el-button
+          >
+          <el-button :disabled="modelLoading" @click="handleModelButtonClick(2)"
+            >模型3</el-button
+          >
+          <el-button :disabled="modelLoading" @click="handleModelButtonClick(3)"
+            >模型4</el-button
+          >
+          <el-button :disabled="modelLoading" @click="handleModelButtonClick(4)"
+            >模型5</el-button
+          >
         </el-collapse-item>
         <el-collapse-item title="部件列表" name="2">
-          <el-input v-model="searchText" placeholder="搜索部件名称..." size="small" clearable style="margin-bottom: 8px;" />
-          <div v-if="filteredSubMeshes.length === 0" style="color: #aaa; text-align: center;">暂无可用部件</div>
-          <div v-for="item in filteredSubMeshes" :key="item.uuid"
+          <el-input
+            v-model="searchText"
+            placeholder="搜索部件名称..."
+            size="small"
+            clearable
+            style="margin-bottom: 8px"
+          />
+          <el-button
+            size="small"
+            style="margin-bottom: 8px"
+            @click="restoreAllMeshes"
+            :disabled="selectedMeshes.length === 0"
+            >一键还原所有部件</el-button
+          >
+
+          <el-button @click="resetCamera">重置视角</el-button>
+
+          <div
+            v-if="filteredSubMeshes.length === 0"
+            style="color: #aaa; text-align: center"
+          >
+            暂无可用部件
+          </div>
+          <div
+            v-for="item in filteredSubMeshes"
+            :key="item.uuid"
             class="submesh-list-item"
-            :class="{ 'active': selectedMesh === item, 'hovered': hoveredMesh === item }"
+            :class="{
+              active: selectedMeshes.includes(item),
+              hovered: hoveredMesh === item,
+            }"
             @mouseenter="handleMeshHover(item)"
             @mouseleave="handleMeshHover(null)"
-            @click="handleMeshSelect(item)"
+            @click="handleMeshSelectFromList(item, $event)"
           >
-            <span>{{ item.name || '未命名部件' }}</span>
+            <span>{{ item.name || "未命名部件" }}</span>
           </div>
         </el-collapse-item>
         <el-collapse-item title="模型控制" name="3">
-          <div class="model-controls">
-            <el-button @click="resetCamera">重置视角</el-button>
-          </div>
+          <div class="model-controls"></div>
         </el-collapse-item>
       </el-collapse>
     </div>
     <div v-if="showDetailPanel && selectedMesh" class="info-panel">
       <div class="info-panel-header">
         <span>部件详情</span>
-        <el-button icon="el-icon-close" size="mini" circle @click="showDetailPanel = false" style="float:right;" />
+        <el-button
+          icon="el-icon-close"
+          size="mini"
+          circle
+          @click="showDetailPanel = false"
+          style="float: right"
+        />
       </div>
       <div class="info-panel-body">
-        <p><b>名称：</b>{{ selectedMesh.name || '未命名部件' }}</p>
-        <p><b>材质：</b>{{ selectedMesh.material?.type || '未知' }}</p>
-        <p><b>位置：</b>X: {{ selectedMesh.position.x.toFixed(2) }} Y: {{ selectedMesh.position.y.toFixed(2) }} Z: {{ selectedMesh.position.z.toFixed(2) }}</p>
-        <p><b>尺寸：</b>
+        <p><b>名称：</b>{{ selectedMesh.name || "未命名部件" }}</p>
+        <p><b>材质：</b>{{ selectedMesh.material?.type || "未知" }}</p>
+        <p>
+          <b>位置：</b>X: {{ selectedMesh.position.x.toFixed(2) }} Y:
+          {{ selectedMesh.position.y.toFixed(2) }} Z:
+          {{ selectedMesh.position.z.toFixed(2) }}
+        </p>
+        <p>
+          <b>尺寸：</b>
           <span v-if="selectedMesh.geometry">
             {{ getMeshSize(selectedMesh).x.toFixed(2) }} ×
             {{ getMeshSize(selectedMesh).y.toFixed(2) }} ×
@@ -48,6 +93,11 @@
           </span>
           <span v-else>未知</span>
         </p>
+      </div>
+      <div v-if="decomposedMesh" class="info-panel-footer">
+        <el-button size="small" @click="restoreMesh(decomposedMesh)"
+          >还原部件</el-button
+        >
       </div>
     </div>
   </div>
@@ -66,9 +116,11 @@ const info = ref(null);
 const modelLoading = ref(false);
 const searchText = ref("");
 const subMeshes = shallowRef([]); // 所有部件Mesh
-const selectedMesh = ref(null);   // 当前选中部件
-const hoveredMesh = ref(null);    // 当前悬停部件
+const selectedMeshes = ref([]); // 支持多选
+const selectedMesh = ref(null); // 当前选中部件
+const hoveredMesh = ref(null); // 当前悬停部件
 const showDetailPanel = ref(false);
+const decomposedMesh = ref(null); // 当前拆解的部件
 
 const data = {
   scene: new THREE.Scene(),
@@ -79,19 +131,21 @@ const data = {
     "阀门.gltf",
     "阀门红色材质.gltf",
     "阀门2.gltf",
-    "K60发电机.gltf"
+    "K60发电机.gltf",
   ],
   mesh: null,
   gltfLoader: new GLTFLoader(),
   fBXLoader: new FBXLoader(),
   box: new THREE.Box3(),
   center: new THREE.Vector3(),
-  dis: 0
+  dis: 0,
 };
 
 const filteredSubMeshes = computed(() => {
   if (!searchText.value) return subMeshes.value;
-  return subMeshes.value.filter(m => (m.name || '').toLowerCase().includes(searchText.value.toLowerCase()));
+  return subMeshes.value.filter((m) =>
+    (m.name || "").toLowerCase().includes(searchText.value.toLowerCase())
+  );
 });
 
 // 高亮材质缓存
@@ -100,7 +154,7 @@ const highlightMaterial = new THREE.MeshBasicMaterial({ color: 0xff8800 });
 
 onMounted(() => {
   const container = document.getElementById("container");
-  
+
   // 设置场景
   data.scene.background = new THREE.Color(0xeeeeee); // 更柔和的浅灰色背景
   const width = container.clientWidth;
@@ -120,7 +174,7 @@ onMounted(() => {
   // 设置渲染器
   const renderer = new THREE.WebGLRenderer({
     antialias: true,
-    alpha: true
+    alpha: true,
   });
   renderer.setSize(width, height);
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
@@ -141,7 +195,8 @@ onMounted(() => {
   } catch (err) {
     console.error("初始加载模型失败", err);
     if (info.value) {
-      info.value.innerHTML = '<span style="color: #f22">初始加载失败，将显示默认模型</span>';
+      info.value.innerHTML =
+        '<span style="color: #f22">初始加载失败，将显示默认模型</span>';
     }
     createDefaultMesh();
   }
@@ -156,6 +211,43 @@ onMounted(() => {
 
     renderer.setSize(width, height);
   };
+
+  // 3D场景点击拾取
+  const raycaster = new THREE.Raycaster();
+  const mouse = new THREE.Vector2();
+  renderer.domElement.addEventListener("pointerdown", (event) => {
+    // 只处理主键点击
+    if (event.button !== 0) return;
+    mouse.x = (event.offsetX / renderer.domElement.clientWidth) * 2 - 1;
+    mouse.y = -(event.offsetY / renderer.domElement.clientHeight) * 2 + 1;
+    raycaster.setFromCamera(mouse, data.camera);
+    const intersects = raycaster.intersectObjects(subMeshes.value, false);
+    if (intersects.length > 0) {
+      const mesh = intersects[0].object;
+      // 多选支持（Ctrl/Shift）
+      if (event.ctrlKey || event.shiftKey) {
+        if (!selectedMeshes.value.includes(mesh)) {
+          selectedMeshes.value.push(mesh);
+          handleMeshSelectMulti(mesh);
+        } else {
+          // 再次点击取消选中
+          selectedMeshes.value = selectedMeshes.value.filter((m) => m !== mesh);
+          restoreMesh(mesh);
+          if (meshOriginalMaterialMap.has(mesh))
+            mesh.material = meshOriginalMaterialMap.get(mesh);
+        }
+      } else {
+        // 单选
+        selectedMeshes.value.forEach((m) => {
+          restoreMesh(m);
+          if (meshOriginalMaterialMap.has(m))
+            m.material = meshOriginalMaterialMap.get(m);
+        });
+        selectedMeshes.value = [mesh];
+        handleMeshSelect(mesh);
+      }
+    }
+  });
 
   // 渲染循环
   function animate() {
@@ -173,7 +265,10 @@ function loadMesh() {
     return;
   }
 
-  if (meshNameIndex.value < 0 || meshNameIndex.value >= data.meshNameList.length) {
+  if (
+    meshNameIndex.value < 0 ||
+    meshNameIndex.value >= data.meshNameList.length
+  ) {
     console.error("无效的模型索引:", meshNameIndex.value);
     return;
   }
@@ -257,8 +352,11 @@ function loadMesh() {
     },
     (xhr) => {
       if (!info.value) return;
-      const progress = xhr.total ? Math.floor((xhr.loaded / xhr.total) * 100) : 0;
-      info.value.innerHTML = progress >= 100 ? "处理模型中..." : progress + "% 已加载";
+      const progress = xhr.total
+        ? Math.floor((xhr.loaded / xhr.total) * 100)
+        : 0;
+      info.value.innerHTML =
+        progress >= 100 ? "处理模型中..." : progress + "% 已加载";
     },
     (err) => {
       console.error("模型加载失败", err);
@@ -271,7 +369,7 @@ function loadMesh() {
 // 递归收集所有Mesh部件
 function collectSubMeshes(object) {
   const meshes = [];
-  object.traverse(child => {
+  object.traverse((child) => {
     if (child.isMesh) {
       meshes.push(child);
     }
@@ -283,7 +381,8 @@ function collectSubMeshes(object) {
 function handleModelButtonClick(index) {
   if (modelLoading.value) {
     if (info.value) {
-      info.value.innerHTML = '<span style="color: #f22">请等待当前模型加载完成</span>';
+      info.value.innerHTML =
+        '<span style="color: #f22">请等待当前模型加载完成</span>';
     }
     return;
   }
@@ -312,7 +411,7 @@ function disposeModel(model) {
       }
       if (child.material) {
         if (Array.isArray(child.material)) {
-          child.material.forEach(material => material.dispose());
+          child.material.forEach((material) => material.dispose());
         } else {
           child.material.dispose();
         }
@@ -367,9 +466,13 @@ function focusCameraOnMesh(mesh) {
   const maxDim = Math.max(size.x, size.y, size.z);
   // 计算目标相机距离
   const fitOffset = 1.5;
-  const distance = maxDim * fitOffset / Math.tan((data.camera.fov * Math.PI) / 360);
+  const distance =
+    (maxDim * fitOffset) / Math.tan((data.camera.fov * Math.PI) / 360);
   // 目标相机位置（保持当前视角方向）
-  const direction = data.camera.position.clone().sub(data.orbitControls.target).normalize();
+  const direction = data.camera.position
+    .clone()
+    .sub(data.orbitControls.target)
+    .normalize();
   const newCamPos = center.clone().add(direction.multiplyScalar(distance));
 
   // 动画插值参数
@@ -393,11 +496,94 @@ function focusCameraOnMesh(mesh) {
   animateFocus();
 }
 
-function handleMeshSelect(mesh) {
-  // 还原上一个选中
-  if (selectedMesh.value && meshOriginalMaterialMap.has(selectedMesh.value)) {
-    selectedMesh.value.material = meshOriginalMaterialMap.get(selectedMesh.value);
+// 拆解部件动画
+function decomposeMesh(mesh) {
+  if (!mesh) return;
+  // 记录原始位置
+  if (!mesh.position_0) mesh.position_0 = mesh.position.clone();
+  // 计算拆解方向（远离模型中心）
+  const box = new THREE.Box3().setFromObject(mesh);
+  const center = new THREE.Vector3();
+  box.getCenter(center);
+  const modelCenter = new THREE.Vector3();
+  data.box.setFromObject(data.mesh);
+  data.box.getCenter(modelCenter);
+  const direction = center.clone().sub(modelCenter).normalize();
+  const offset = direction.multiplyScalar(2.5); // 拆解距离
+  const start = mesh.position.clone();
+  const end = mesh.position_0.clone().add(offset);
+  let t = 0;
+  const duration = 0.6;
+  function animate() {
+    t += 1 / 60 / duration;
+    if (t > 1) t = 1;
+    mesh.position.lerpVectors(start, end, t);
+    if (t < 1) {
+      requestAnimationFrame(animate);
+    } else {
+      decomposedMesh.value = mesh;
+    }
   }
+  animate();
+}
+
+// 还原部件动画
+function restoreMesh(mesh) {
+  if (!mesh || !mesh.position_0) return;
+  const start = mesh.position.clone();
+  const end = mesh.position_0.clone();
+  let t = 0;
+  const duration = 0.6;
+  function animate() {
+    t += 1 / 60 / duration;
+    if (t > 1) t = 1;
+    mesh.position.lerpVectors(start, end, t);
+    if (t < 1) {
+      requestAnimationFrame(animate);
+    } else {
+      decomposedMesh.value = null;
+    }
+  }
+  animate();
+}
+
+// 多选高亮与拆解
+function handleMeshSelectMulti(mesh) {
+  // 高亮
+  if (mesh && mesh.isMesh) {
+    if (!meshOriginalMaterialMap.has(mesh)) {
+      meshOriginalMaterialMap.set(mesh, mesh.material);
+    }
+    mesh.material = highlightMaterial;
+  }
+  // 拆解
+  decomposeMesh(mesh);
+  // 列表同步高亮
+  selectedMesh.value = mesh;
+  showDetailPanel.value = true;
+}
+
+// 一键还原所有部件
+function restoreAllMeshes() {
+  selectedMeshes.value.forEach((mesh) => {
+    restoreMesh(mesh);
+    if (meshOriginalMaterialMap.has(mesh))
+      mesh.material = meshOriginalMaterialMap.get(mesh);
+  });
+  selectedMeshes.value = [];
+  selectedMesh.value = null;
+  decomposedMesh.value = null;
+  showDetailPanel.value = false;
+}
+
+function handleMeshSelect(mesh) {
+  // 还原所有已选部件
+  selectedMeshes.value.forEach((m) => {
+    restoreMesh(m);
+    if (meshOriginalMaterialMap.has(m))
+      m.material = meshOriginalMaterialMap.get(m);
+  });
+  selectedMeshes.value = [mesh];
   selectedMesh.value = mesh;
   // 设置高亮
   if (mesh && mesh.isMesh) {
@@ -410,6 +596,25 @@ function handleMeshSelect(mesh) {
   showDetailPanel.value = true;
   // 相机平滑聚焦
   focusCameraOnMesh(mesh);
+  // 拆解部件
+  decomposeMesh(mesh);
+}
+
+// 列表点击多选支持
+function handleMeshSelectFromList(mesh, event) {
+  if (event && (event.ctrlKey || event.shiftKey)) {
+    if (!selectedMeshes.value.includes(mesh)) {
+      selectedMeshes.value.push(mesh);
+      handleMeshSelectMulti(mesh);
+    } else {
+      selectedMeshes.value = selectedMeshes.value.filter((m) => m !== mesh);
+      restoreMesh(mesh);
+      if (meshOriginalMaterialMap.has(mesh))
+        mesh.material = meshOriginalMaterialMap.get(mesh);
+    }
+  } else {
+    handleMeshSelect(mesh);
+  }
 }
 
 // 获取Mesh尺寸
@@ -424,9 +629,11 @@ function getMeshSize(mesh) {
 // 鼠标离开canvas时还原高亮
 const container = document.getElementById("container");
 if (container) {
-  container.addEventListener('mouseleave', () => {
+  container.addEventListener("mouseleave", () => {
     if (hoveredMesh.value && meshOriginalMaterialMap.has(hoveredMesh.value)) {
-      hoveredMesh.value.material = meshOriginalMaterialMap.get(hoveredMesh.value);
+      hoveredMesh.value.material = meshOriginalMaterialMap.get(
+        hoveredMesh.value
+      );
       hoveredMesh.value = null;
     }
   });
@@ -457,7 +664,7 @@ if (container) {
   right: 30px;
   background: #fff;
   border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.12);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
   padding: 18px 22px 12px 22px;
   min-width: 260px;
   z-index: 10;
@@ -474,6 +681,10 @@ if (container) {
 .info-panel-body p {
   margin: 8px 0;
   color: #444;
+}
+.info-panel-footer {
+  margin-top: 12px;
+  text-align: right;
 }
 
 .submesh-list-item {
