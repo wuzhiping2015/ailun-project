@@ -179,6 +179,27 @@ onMounted(() => {
   data.camera.position.set(10, 10, 10);
   data.camera.lookAt(0, 0, 0);
 
+  // 优化光照设置
+  const ambientLight = new THREE.AmbientLight(0xffffff, 0.3);
+  
+  // 主平行光
+  data.directionalLight = new THREE.DirectionalLight(0xffffff, 1);
+  data.directionalLight.position.set(100, 100, 100);
+  data.directionalLight.castShadow = true;
+  data.directionalLight.shadow.mapSize.width = 2048;
+  data.directionalLight.shadow.mapSize.height = 2048;
+  
+  // 添加辅助平行光
+  const secondaryLight = new THREE.DirectionalLight(0xffffff, 0.5);
+  secondaryLight.position.set(-100, 100, -100);
+  
+  // 添加环境半球光
+  const hemiLight = new THREE.HemisphereLight(0xffffff, 0x444444, 0.5);
+  hemiLight.position.set(0, 200, 0);
+
+  data.scene.add(ambientLight, data.directionalLight, secondaryLight, hemiLight);
+
+  // 设置渲染器
   const renderer = new THREE.WebGLRenderer({
     antialias: true,
     logarithmicDepthBuffer: true,
@@ -188,18 +209,10 @@ onMounted(() => {
   renderer.setPixelRatio(window.devicePixelRatio);
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  renderer.outputEncoding = THREE.sRGBEncoding;
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = 1.0;
   container.appendChild(renderer.domElement);
-
-  // 优化光照设置
-  data.directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
-  data.directionalLight.position.set(100, 100, 100);
-  data.scene.add(data.directionalLight);
-
-  const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
-  const hemisphereLight = new THREE.HemisphereLight(0xffffff, 0x444444, 0.8);
-  hemisphereLight.position.set(0, 200, 0);
-
-  data.scene.add(ambientLight, hemisphereLight);
 
   // 优化轨道控制器设置
   data.orbitControls = new OrbitControls(data.camera, renderer.domElement);
@@ -433,16 +446,30 @@ function loadMesh() {
               child.castShadow = true;
               child.receiveShadow = true;
               
-              // 设置默认材质
               if (child.material) {
-                child.material = new THREE.MeshPhongMaterial({
-                  color: child.material.color || 0xcccccc,
+                // 保持原始材质属性
+                const originalMaterial = child.material;
+                child.material = new THREE.MeshStandardMaterial({
+                  color: originalMaterial.color || new THREE.Color(0xcccccc),
+                  map: originalMaterial.map,
+                  metalness: originalMaterial.metalness !== undefined ? originalMaterial.metalness : 0.5,
+                  roughness: originalMaterial.roughness !== undefined ? originalMaterial.roughness : 0.5,
                   transparent: true,
-                  opacity: 1,
+                  opacity: 1.0,
                   side: THREE.DoubleSide,
-                  shininess: 30,
-                  specular: 0x444444
+                  envMapIntensity: 1.0
                 });
+
+                // 如果有法线贴图
+                if (originalMaterial.normalMap) {
+                  child.material.normalMap = originalMaterial.normalMap;
+                  child.material.normalScale = originalMaterial.normalScale || new THREE.Vector2(1, 1);
+                }
+
+                // 如果有环境贴图
+                if (originalMaterial.envMap) {
+                  child.material.envMap = originalMaterial.envMap;
+                }
               }
             }
           });
@@ -871,31 +898,35 @@ function createDefaultMesh() {
 function optimizeModel(model) {
   model.traverse((child) => {
     if (child.isMesh) {
+      child.castShadow = true;
+      child.receiveShadow = true;
+
       // 优化几何体
       if (child.geometry) {
-        // 检查几何体是否支持合并顶点
         if (child.geometry.attributes && child.geometry.attributes.position) {
           child.geometry.computeVertexNormals();
-          // 确保几何体是 BufferGeometry
-          if (child.geometry.isBufferGeometry) {
-            child.geometry = new THREE.BufferGeometry().fromGeometry(
-              new THREE.Geometry().fromBufferGeometry(child.geometry)
-            );
-          }
         }
       }
       
       // 优化材质
       if (child.material) {
-        // 确保材质是 MeshPhongMaterial
-        if (!child.material.isMeshPhongMaterial) {
-          child.material = new THREE.MeshPhongMaterial({
-            color: child.material.color,
-            transparent: child.material.transparent,
-            opacity: child.material.opacity,
-            side: THREE.DoubleSide
-          });
-        }
+        // 保存原始材质属性
+        const originalColor = child.material.color ? child.material.color.clone() : new THREE.Color(0xcccccc);
+        const originalMap = child.material.map;
+        const originalMetalness = child.material.metalness !== undefined ? child.material.metalness : 0.5;
+        const originalRoughness = child.material.roughness !== undefined ? child.material.roughness : 0.5;
+
+        // 创建新的PBR材质
+        child.material = new THREE.MeshStandardMaterial({
+          color: originalColor,
+          map: originalMap,
+          metalness: originalMetalness,
+          roughness: originalRoughness,
+          transparent: true,
+          opacity: 1.0,
+          side: THREE.DoubleSide,
+          envMapIntensity: 1.0
+        });
       }
     }
   });
@@ -957,6 +988,22 @@ function updateModelPosition(group) {
   );
   data.orbitControls.target.copy(data.center);
   data.orbitControls.update();
+}
+
+// 添加环境贴图加载
+function loadEnvironmentMap() {
+  const pmremGenerator = new THREE.PMREMGenerator(renderer);
+  pmremGenerator.compileEquirectangularShader();
+
+  const envMapTexture = new THREE.TextureLoader().load(
+    '/envmap.jpg',  // 确保有这个环境贴图文件
+    (texture) => {
+      const envMap = pmremGenerator.fromEquirectangular(texture).texture;
+      data.scene.environment = envMap;
+      texture.dispose();
+      pmremGenerator.dispose();
+    }
+  );
 }
 </script>
 
