@@ -4,6 +4,7 @@
       <router-link to="/Demo" class="nav-button">模型查看器</router-link>
       <router-link to="/Demo2" class="nav-button">模型查看器2</router-link>
       <router-link to="/model-viewer" class="nav-button">3D模型查看器</router-link>
+      <router-link to="/digital-twin" class="nav-button">digital-twin</router-link>
     </div>
     <div class="content-container">
       <router-view />

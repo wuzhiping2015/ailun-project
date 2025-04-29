@@ -56,7 +56,7 @@ alwaysApply: false
 
 ## 技术栈
 
-- **前端框架**：Vue 3 + TypeScript + Composition API
+- **前端框架**：Vue 3 + Javascript + Composition API
 - **3D 引擎**：Three.js (r150+)
 - **状态管理**：Pinia
 - **数据可视化**：ECharts 5
@@ -108,14 +108,14 @@ alwaysApply: false
 ```markdown
 我需要创建一个船舶/工业设备数字孪生监控平台的前端项目。请使用 Cursor AI 完成以下任务：
 
-1. 初始化 Vue 3 + TypeScript + Vite 项目，配置 ESLint、Prettier 和 Husky。
+1. 初始化 Vue 3 + Javascript + Vite 项目，配置 ESLint、Prettier 和 Husky。
 2. 设计目录结构：/components、/services、/utils、/stores、/assets。
 3. 集成 Three.js (r150+)，初始化基本场景（相机、渲染器、灯光）。
 4. 配置 Pinia，创建设备状态 store，定义设备数据模型（属性、状态、关系）。
 5. 设置 Vue Router，包含首页、监控页、诊断页路由。
 6. 集成 Element Plus，添加侧边栏、顶部导航、主内容区布局。
 7. 集成 ECharts 5，创建示例折线图组件。
-8. 定义 TypeScript 接口：设备模型、参数、故障。
+8. 定义 Javascript 接口：设备模型、参数、故障。
 9. 配置 Git Flow 和 JSDoc 文档规范。
 
 请提供完整代码结构和关键文件（如 main.ts、App.vue、store/device.ts）的实现。
@@ -162,7 +162,7 @@ alwaysApply: false
 ```markdown
 我需要实现实时监控和数据可视化功能。请使用 Cursor AI 完成以下任务：
 
-1. 定义设备数据模型（TypeScript 接口），包含参数、状态、历史记录。
+1. 定义设备数据模型（ js 实现 接口），包含参数、状态、历史记录。
 2. 实现 WebSocket 服务，连接后端，接收实时参数更新（JSON 格式，节流 100ms）。
 3. 创建数据适配器，将后端数据映射到前端模型，优化批量更新。
 4. 开发参数监控面板，展示温度、压力、流量等指标，支持动态刷新。
@@ -180,7 +180,7 @@ alwaysApply: false
 ```markdown
 我需要实现故障诊断与预警功能。请使用 Cursor AI 完成以下任务：
 
-1. 设计故障模型（TypeScript 接口），包含故障代码、级别、描述。
+1. 设计故障模型（Javascript 接口），包含故障代码、级别、描述。
 2. 实现异常检测算法，基于多参数规则（例如温度>80℃且振动>5Hz）。
 3. 开发故障预警分级（正常、警告、错误），触发不同颜色通知。
 4. 创建故障定位功能，在 3D 模型中高亮故障部件（使用 Outline 效果）。

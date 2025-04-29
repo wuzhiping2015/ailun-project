@@ -35,7 +35,7 @@
 │  │  ├─ shaders/          # 自定义着色器
 │  │  └─ utils/            # Three.js工具函数
 │  ├─ utils/               # 通用工具函数
-│  ├─ types/               # TypeScript类型定义
+│  ├─ types/               # 定义
 │  └─ store/               # Pinia状态管理
 ├─ tests/                  # 测试目录
 ├─ .vite/                  # Vite配置
@@ -121,7 +121,7 @@
 - **代码规范**
   - ESLint配置
   - Prettier配置
-  - TypeScript配置
+  - javascript 配置
 - **测试要求**
   - 单元测试覆盖率≥80%
   - 集成测试覆盖关键流程
