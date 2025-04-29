@@ -4,11 +4,11 @@
       <div ref="info">加载模型中...</div>
       <el-collapse v-model="activeNames">
         <el-collapse-item title="选择模型" name="1">
-          {{ meshNameIndex }}
+          <!-- {{ meshNameIndex }} -->
           <el-button :disabled="modelLoading" @click="handleModelButtonClick(0)"
-            >模型1</el-button
+            >船体模型</el-button
           >
-          <el-button :disabled="modelLoading" @click="handleModelButtonClick(1)"
+          <!-- <el-button :disabled="modelLoading" @click="handleModelButtonClick(1)"
             >模型2</el-button
           >
           <el-button :disabled="modelLoading" @click="handleModelButtonClick(2)"
@@ -19,7 +19,7 @@
           >
           <el-button :disabled="modelLoading" @click="handleModelButtonClick(4)"
             >模型5</el-button
-          >
+          > -->
         </el-collapse-item>
         <el-collapse-item title="部件列表" name="2">
           <el-input
@@ -37,7 +37,7 @@
             >一键还原所有部件</el-button
           >
 
-          <el-button @click="resetCamera">重置视角</el-button>
+          <el-button @click="resetCamera"  size="small">重置视角</el-button>
 
           <div
             v-if="filteredSubMeshes.length === 0"
@@ -60,9 +60,9 @@
             <span>{{ item.name || "未命名部件" }}</span>
           </div>
         </el-collapse-item>
-        <el-collapse-item title="模型控制" name="3">
+        <!-- <el-collapse-item title="模型控制" name="3">
           <div class="model-controls"></div>
-        </el-collapse-item>
+        </el-collapse-item> -->
       </el-collapse>
     </div>
     <div v-if="showDetailPanel && selectedMesh" class="info-panel">
@@ -389,17 +389,15 @@ function handleModelButtonClick(index) {
   meshNameIndex.value = index;
 }
 
-// 重置相机
+// 备份当前resetCamera实现
+const resetCameraBackup = resetCamera;
+
+// 新重置视角逻辑：重新加载当前模型
 function resetCamera() {
-  if (data.mesh) {
-    data.camera.position.set(
-      data.center.x,
-      data.center.y,
-      data.center.z + data.dis
-    );
-    data.orbitControls.target.copy(data.center);
-    data.orbitControls.update();
-  }
+  // 还原所有部件
+  restoreAllMeshes();
+  // 重新加载当前模型
+  loadMesh();
 }
 
 // 释放模型资源
