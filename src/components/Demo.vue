@@ -31,6 +31,25 @@
         </el-collapse-item>
       </el-collapse>
     </div>
+    <div v-if="showDetailPanel && selectedMesh" class="info-panel">
+      <div class="info-panel-header">
+        <span>部件详情</span>
+        <el-button icon="el-icon-close" size="mini" circle @click="showDetailPanel = false" style="float:right;" />
+      </div>
+      <div class="info-panel-body">
+        <p><b>名称：</b>{{ selectedMesh.name || '未命名部件' }}</p>
+        <p><b>材质：</b>{{ selectedMesh.material?.type || '未知' }}</p>
+        <p><b>位置：</b>X: {{ selectedMesh.position.x.toFixed(2) }} Y: {{ selectedMesh.position.y.toFixed(2) }} Z: {{ selectedMesh.position.z.toFixed(2) }}</p>
+        <p><b>尺寸：</b>
+          <span v-if="selectedMesh.geometry">
+            {{ getMeshSize(selectedMesh).x.toFixed(2) }} ×
+            {{ getMeshSize(selectedMesh).y.toFixed(2) }} ×
+            {{ getMeshSize(selectedMesh).z.toFixed(2) }}
+          </span>
+          <span v-else>未知</span>
+        </p>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -49,6 +68,7 @@ const searchText = ref("");
 const subMeshes = shallowRef([]); // 所有部件Mesh
 const selectedMesh = ref(null);   // 当前选中部件
 const hoveredMesh = ref(null);    // 当前悬停部件
+const showDetailPanel = ref(false);
 
 const data = {
   scene: new THREE.Scene(),
@@ -334,6 +354,45 @@ function handleMeshHover(mesh) {
     mesh.material = highlightMaterial;
   }
 }
+
+// 平滑相机聚焦到目标Mesh
+function focusCameraOnMesh(mesh) {
+  if (!mesh) return;
+  // 计算包围盒中心和尺寸
+  const box = new THREE.Box3().setFromObject(mesh);
+  const center = new THREE.Vector3();
+  box.getCenter(center);
+  const size = new THREE.Vector3();
+  box.getSize(size);
+  const maxDim = Math.max(size.x, size.y, size.z);
+  // 计算目标相机距离
+  const fitOffset = 1.5;
+  const distance = maxDim * fitOffset / Math.tan((data.camera.fov * Math.PI) / 360);
+  // 目标相机位置（保持当前视角方向）
+  const direction = data.camera.position.clone().sub(data.orbitControls.target).normalize();
+  const newCamPos = center.clone().add(direction.multiplyScalar(distance));
+
+  // 动画插值参数
+  const startPos = data.camera.position.clone();
+  const startTarget = data.orbitControls.target.clone();
+  const endPos = newCamPos;
+  const endTarget = center;
+  let t = 0;
+  const duration = 0.8; // 秒
+  const animateFocus = () => {
+    t += 1 / 60 / duration;
+    if (t > 1) t = 1;
+    // 插值
+    data.camera.position.lerpVectors(startPos, endPos, t);
+    data.orbitControls.target.lerpVectors(startTarget, endTarget, t);
+    data.orbitControls.update();
+    if (t < 1) {
+      requestAnimationFrame(animateFocus);
+    }
+  };
+  animateFocus();
+}
+
 function handleMeshSelect(mesh) {
   // 还原上一个选中
   if (selectedMesh.value && meshOriginalMaterialMap.has(selectedMesh.value)) {
@@ -347,7 +406,21 @@ function handleMeshSelect(mesh) {
     }
     mesh.material = highlightMaterial;
   }
+  // 弹出详情面板
+  showDetailPanel.value = true;
+  // 相机平滑聚焦
+  focusCameraOnMesh(mesh);
 }
+
+// 获取Mesh尺寸
+function getMeshSize(mesh) {
+  if (!mesh.geometry) return { x: 0, y: 0, z: 0 };
+  const box = new THREE.Box3().setFromObject(mesh);
+  const size = new THREE.Vector3();
+  box.getSize(size);
+  return size;
+}
+
 // 鼠标离开canvas时还原高亮
 const container = document.getElementById("container");
 if (container) {
@@ -376,6 +449,31 @@ if (container) {
   overflow-y: auto;
   z-index: 1;
   box-shadow: 2px 0 5px rgba(0, 0, 0, 0.1);
+}
+
+.info-panel {
+  position: absolute;
+  top: 30px;
+  right: 30px;
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.12);
+  padding: 18px 22px 12px 22px;
+  min-width: 260px;
+  z-index: 10;
+  font-size: 15px;
+}
+.info-panel-header {
+  font-weight: bold;
+  font-size: 16px;
+  margin-bottom: 10px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.info-panel-body p {
+  margin: 8px 0;
+  color: #444;
 }
 
 .submesh-list-item {
