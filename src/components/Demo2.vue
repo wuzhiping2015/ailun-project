@@ -444,10 +444,8 @@ export default defineComponent({
 
       // 添加DRACO压缩支持
       const dracoLoader = new DRACOLoader();
-      // 使用官方CDN
-      dracoLoader.setDecoderPath(
-        "https://www.gstatic.com/draco/versioned/decoders/1.5.6/"
-      );
+      // 使用node_modules中的DRACO解码器
+      dracoLoader.setDecoderPath('/node_modules/draco3d/');
       dracoLoader.setDecoderConfig({ type: "js" });
       loader.setDRACOLoader(dracoLoader);
 
