@@ -127,7 +127,8 @@ const data = {
   // 确保模型文件路径正确，使用相对路径或绝对路径
   //   meshNameList: ["cube.glb", "sphere.glb", "torus.glb", "teapot.glb"],
   meshNameList: [
-    "untitled.gltf",  // 修改为实际的模型文件名
+    "6.gltf",  // 修改为实际的模型文件名
+    // { name: "船模型 (GLTF)", path: "6.gltf" },
     "阀门.gltf",
     "阀门红色材质.gltf",
     "阀门2.gltf",
@@ -170,7 +171,7 @@ onMounted(() => {
   container.appendChild(data.progressBar);
   
   // 设置场景
-  data.scene.background = new THREE.Color(0xf0f0f0);
+  data.scene.background = new THREE.Color(0x222222);  // 更暗的背景色
   const width = container.clientWidth;
   const height = container.clientHeight;
 
@@ -179,37 +180,46 @@ onMounted(() => {
   data.camera.position.set(10, 10, 10);
   data.camera.lookAt(0, 0, 0);
 
-  // 优化光照设置
-  const ambientLight = new THREE.AmbientLight(0xffffff, 0.3);
+  // 优化光照系统
+  const ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
   
-  // 主平行光
-  data.directionalLight = new THREE.DirectionalLight(0xffffff, 1);
-  data.directionalLight.position.set(100, 100, 100);
+  // 主平行光（模拟太阳光）
+  data.directionalLight = new THREE.DirectionalLight(0xffffff, 1.0);
+  data.directionalLight.position.set(5, 10, 7.5);
   data.directionalLight.castShadow = true;
   data.directionalLight.shadow.mapSize.width = 2048;
   data.directionalLight.shadow.mapSize.height = 2048;
-  
-  // 添加辅助平行光
-  const secondaryLight = new THREE.DirectionalLight(0xffffff, 0.5);
-  secondaryLight.position.set(-100, 100, -100);
-  
+  data.directionalLight.shadow.camera.near = 0.5;
+  data.directionalLight.shadow.camera.far = 500;
+  data.directionalLight.shadow.bias = -0.0001;
+  data.directionalLight.shadow.normalBias = 0.02;
+
+  // 添加填充光（背光）
+  const fillLight = new THREE.DirectionalLight(0xffffff, 0.4);
+  fillLight.position.set(-5, 5, -7.5);
+
   // 添加环境半球光
-  const hemiLight = new THREE.HemisphereLight(0xffffff, 0x444444, 0.5);
-  hemiLight.position.set(0, 200, 0);
+  const hemiLight = new THREE.HemisphereLight(0xffffff, 0x444444, 0.4);
+  hemiLight.position.set(0, 20, 0);
 
-  data.scene.add(ambientLight, data.directionalLight, secondaryLight, hemiLight);
+  // 添加地面反射光
+  const groundLight = new THREE.DirectionalLight(0xffffff, 0.2);
+  groundLight.position.set(0, -10, 0);
 
-  // 设置渲染器
+  data.scene.add(ambientLight, data.directionalLight, fillLight, hemiLight, groundLight);
+
+  // 优化渲染器设置
   const renderer = new THREE.WebGLRenderer({
     antialias: true,
+    alpha: true,
     logarithmicDepthBuffer: true,
-    alpha: true
+    powerPreference: "high-performance"
   });
   renderer.setSize(width, height);
-  renderer.setPixelRatio(window.devicePixelRatio);
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-  renderer.outputEncoding = THREE.sRGBEncoding;
+  renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
   renderer.toneMappingExposure = 1.0;
   container.appendChild(renderer.domElement);
@@ -446,47 +456,79 @@ function loadMesh() {
               child.castShadow = true;
               child.receiveShadow = true;
               
+              // 优化几何体
+              if (child.geometry) {
+                child.geometry.computeVertexNormals();
+                if (!child.geometry.attributes.uv) {
+                  child.geometry.computeVertexNormals();
+                }
+              }
+              
+              // 优化材质
               if (child.material) {
-                // 保持原始材质属性
-                const originalMaterial = child.material;
-                child.material = new THREE.MeshStandardMaterial({
-                  color: originalMaterial.color || new THREE.Color(0xcccccc),
-                  map: originalMaterial.map,
-                  metalness: originalMaterial.metalness !== undefined ? originalMaterial.metalness : 0.5,
-                  roughness: originalMaterial.roughness !== undefined ? originalMaterial.roughness : 0.5,
-                  transparent: true,
-                  opacity: 1.0,
-                  side: THREE.DoubleSide,
-                  envMapIntensity: 1.0
+                const materials = Array.isArray(child.material) ? child.material : [child.material];
+                materials.forEach(material => {
+                  // 基础材质设置
+                  material.side = THREE.DoubleSide;
+                  material.needsUpdate = true;
+
+                  // 优化PBR材质参数
+                  if (material instanceof THREE.MeshStandardMaterial) {
+                    material.envMapIntensity = 1.0;
+                    material.roughness = Math.min(Math.max(material.roughness, 0.2), 0.8);
+                    material.metalness = Math.min(Math.max(material.metalness, 0.1), 0.9);
+                  } else {
+                    // 如果不是PBR材质，转换为PBR材质
+                    const newMaterial = new THREE.MeshStandardMaterial({
+                      color: material.color || new THREE.Color(0xcccccc),
+                      map: material.map,
+                      metalness: 0.5,
+                      roughness: 0.5,
+                      transparent: material.transparent,
+                      opacity: material.opacity,
+                      side: THREE.DoubleSide
+                    });
+                    child.material = newMaterial;
+                  }
+
+                  // 优化纹理
+                  if (material.map) {
+                    material.map.anisotropy = 16;
+                    material.map.minFilter = THREE.LinearMipmapLinearFilter;
+                    material.map.magFilter = THREE.LinearFilter;
+                    material.map.needsUpdate = true;
+                  }
+
+                  // 优化法线贴图
+                  if (material.normalMap) {
+                    material.normalMap.anisotropy = 16;
+                    material.normalScale.set(1, 1);
+                  }
+
+                  // 优化环境遮挡贴图
+                  if (material.aoMap) {
+                    material.aoMap.anisotropy = 16;
+                    material.aoMapIntensity = 1.0;
+                  }
                 });
-
-                // 如果有法线贴图
-                if (originalMaterial.normalMap) {
-                  child.material.normalMap = originalMaterial.normalMap;
-                  child.material.normalScale = originalMaterial.normalScale || new THREE.Vector2(1, 1);
-                }
-
-                // 如果有环境贴图
-                if (originalMaterial.envMap) {
-                  child.material.envMap = originalMaterial.envMap;
-                }
               }
             }
           });
 
-          // 计算模型包围盒并调整相机位置
+          // 计算模型尺寸和位置
           const box = new THREE.Box3().setFromObject(group);
-          const center = box.getCenter(new THREE.Vector3());
-          const size = box.getSize(new THREE.Vector3());
+          const size = new THREE.Vector3();
+          const center = new THREE.Vector3();
+          box.getSize(size);
+          box.getCenter(center);
+
+          // 计算合适的缩放比例
           const maxDim = Math.max(size.x, size.y, size.z);
-          const fov = data.camera.fov * (Math.PI / 180);
-          let cameraZ = Math.abs(maxDim / Math.sin(fov / 2));
-          
-          // 调整相机和控制器
-          data.camera.position.set(center.x, center.y + maxDim * 0.5, center.z + cameraZ);
-          data.camera.lookAt(center);
-          data.orbitControls.target.copy(center);
-          data.orbitControls.update();
+          const scale = maxDim > 0 ? 5 / maxDim : 1;
+
+          // 设置模型变换
+          group.scale.setScalar(scale);
+          group.position.copy(center).multiplyScalar(-scale);
 
           // 添加到场景
           if (data.mesh) {
@@ -502,26 +544,13 @@ function loadMesh() {
 
           // 装载动画
           data.mixers.length = 0;
-          let mixer;
           if (res.animations && res.animations.length) {
-            for (let clip of res.animations) {
-              mixer = new THREE.AnimationMixer(group);
-              mixer.clipAction(clip.optimize()).play();
-            }
+            const mixer = new THREE.AnimationMixer(group);
+            res.animations.forEach(clip => {
+              mixer.clipAction(clip).play();
+            });
+            data.mixers.push(mixer);
           }
-          if (mixer) data.mixers.push(mixer);
-
-          // 设置材质
-          setMtl(
-            new THREE.MeshPhongMaterial({
-              transparent: true,
-              side: THREE.DoubleSide,
-              vertexColors: isVertexColors.value,
-            })
-          );
-
-          // 计算模型尺寸和位置
-          updateModelPosition(group);
 
           setTimeout(() => {
             getSubMeshes();
@@ -898,35 +927,13 @@ function createDefaultMesh() {
 function optimizeModel(model) {
   model.traverse((child) => {
     if (child.isMesh) {
+      // 只设置基础属性
       child.castShadow = true;
       child.receiveShadow = true;
 
-      // 优化几何体
-      if (child.geometry) {
-        if (child.geometry.attributes && child.geometry.attributes.position) {
-          child.geometry.computeVertexNormals();
-        }
-      }
-      
-      // 优化材质
+      // 保持原始材质
       if (child.material) {
-        // 保存原始材质属性
-        const originalColor = child.material.color ? child.material.color.clone() : new THREE.Color(0xcccccc);
-        const originalMap = child.material.map;
-        const originalMetalness = child.material.metalness !== undefined ? child.material.metalness : 0.5;
-        const originalRoughness = child.material.roughness !== undefined ? child.material.roughness : 0.5;
-
-        // 创建新的PBR材质
-        child.material = new THREE.MeshStandardMaterial({
-          color: originalColor,
-          map: originalMap,
-          metalness: originalMetalness,
-          roughness: originalRoughness,
-          transparent: true,
-          opacity: 1.0,
-          side: THREE.DoubleSide,
-          envMapIntensity: 1.0
-        });
+        child.material.needsUpdate = true;
       }
     }
   });
