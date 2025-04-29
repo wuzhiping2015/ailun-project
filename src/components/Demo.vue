@@ -11,6 +11,19 @@
           <el-button :disabled="modelLoading" @click="handleModelButtonClick(3)">模型4</el-button>
           <el-button :disabled="modelLoading" @click="handleModelButtonClick(4)">模型5</el-button>
         </el-collapse-item>
+        <el-collapse-item title="部件列表" name="2">
+          <el-input v-model="searchText" placeholder="搜索部件名称..." size="small" clearable style="margin-bottom: 8px;" />
+          <div v-if="filteredSubMeshes.length === 0" style="color: #aaa; text-align: center;">暂无可用部件</div>
+          <div v-for="item in filteredSubMeshes" :key="item.uuid"
+            class="submesh-list-item"
+            :class="{ 'active': selectedMesh === item, 'hovered': hoveredMesh === item }"
+            @mouseenter="handleMeshHover(item)"
+            @mouseleave="handleMeshHover(null)"
+            @click="handleMeshSelect(item)"
+          >
+            <span>{{ item.name || '未命名部件' }}</span>
+          </div>
+        </el-collapse-item>
         <el-collapse-item title="模型控制" name="3">
           <div class="model-controls">
             <el-button @click="resetCamera">重置视角</el-button>
@@ -22,16 +35,20 @@
 </template>
 
 <script setup>
-import { onMounted, ref } from "vue";
+import { onMounted, ref, shallowRef, computed } from "vue";
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { FBXLoader } from "three/examples/jsm/loaders/FBXLoader.js";
 
 const meshNameIndex = ref(0);
-const activeNames = ref(["1", "3"]);
+const activeNames = ref(["1", "2", "3"]);
 const info = ref(null);
 const modelLoading = ref(false);
+const searchText = ref("");
+const subMeshes = shallowRef([]); // 所有部件Mesh
+const selectedMesh = ref(null);   // 当前选中部件
+const hoveredMesh = ref(null);    // 当前悬停部件
 
 const data = {
   scene: new THREE.Scene(),
@@ -51,6 +68,15 @@ const data = {
   center: new THREE.Vector3(),
   dis: 0
 };
+
+const filteredSubMeshes = computed(() => {
+  if (!searchText.value) return subMeshes.value;
+  return subMeshes.value.filter(m => (m.name || '').toLowerCase().includes(searchText.value.toLowerCase()));
+});
+
+// 高亮材质缓存
+const meshOriginalMaterialMap = new WeakMap();
+const highlightMaterial = new THREE.MeshBasicMaterial({ color: 0xff8800 });
 
 onMounted(() => {
   const container = document.getElementById("container");
@@ -188,6 +214,9 @@ function loadMesh() {
         // 居中模型
         group.position.sub(center);
 
+        // 收集所有Mesh部件
+        collectSubMeshes(group);
+
         // 更新相机位置以适应模型
         const distance = maxDim * 2;
         data.camera.position.set(distance, distance, distance);
@@ -219,30 +248,15 @@ function loadMesh() {
   );
 }
 
-// 创建默认模型
-function createDefaultMesh() {
-  try {
-    if (data.mesh) {
-      data.scene.remove(data.mesh);
-      disposeModel(data.mesh);
+// 递归收集所有Mesh部件
+function collectSubMeshes(object) {
+  const meshes = [];
+  object.traverse(child => {
+    if (child.isMesh) {
+      meshes.push(child);
     }
-
-    const geometry = new THREE.BoxGeometry(1, 1, 1);
-    const material = new THREE.MeshBasicMaterial({ color: 0x3080ff });
-    const mesh = new THREE.Mesh(geometry, material);
-    mesh.name = "默认立方体";
-
-    data.mesh = mesh;
-    data.scene.add(mesh);
-
-    updateModelPosition(mesh);
-
-    if (info.value) {
-      info.value.innerHTML = "已创建默认模型";
-    }
-  } catch (err) {
-    console.error("创建默认模型失败", err);
-  }
+  });
+  subMeshes.value = meshes;
 }
 
 // 处理点击模型按钮事件
@@ -304,6 +318,46 @@ function updateModelPosition(group) {
   data.orbitControls.target.copy(data.center);
   data.orbitControls.update();
 }
+
+// 列表悬停/点击事件
+function handleMeshHover(mesh) {
+  // 先还原上一个高亮
+  if (hoveredMesh.value && meshOriginalMaterialMap.has(hoveredMesh.value)) {
+    hoveredMesh.value.material = meshOriginalMaterialMap.get(hoveredMesh.value);
+  }
+  hoveredMesh.value = mesh;
+  // 设置高亮
+  if (mesh && mesh.isMesh) {
+    if (!meshOriginalMaterialMap.has(mesh)) {
+      meshOriginalMaterialMap.set(mesh, mesh.material);
+    }
+    mesh.material = highlightMaterial;
+  }
+}
+function handleMeshSelect(mesh) {
+  // 还原上一个选中
+  if (selectedMesh.value && meshOriginalMaterialMap.has(selectedMesh.value)) {
+    selectedMesh.value.material = meshOriginalMaterialMap.get(selectedMesh.value);
+  }
+  selectedMesh.value = mesh;
+  // 设置高亮
+  if (mesh && mesh.isMesh) {
+    if (!meshOriginalMaterialMap.has(mesh)) {
+      meshOriginalMaterialMap.set(mesh, mesh.material);
+    }
+    mesh.material = highlightMaterial;
+  }
+}
+// 鼠标离开canvas时还原高亮
+const container = document.getElementById("container");
+if (container) {
+  container.addEventListener('mouseleave', () => {
+    if (hoveredMesh.value && meshOriginalMaterialMap.has(hoveredMesh.value)) {
+      hoveredMesh.value.material = meshOriginalMaterialMap.get(hoveredMesh.value);
+      hoveredMesh.value = null;
+    }
+  });
+}
 </script>
 
 <style scoped>
@@ -322,6 +376,23 @@ function updateModelPosition(group) {
   overflow-y: auto;
   z-index: 1;
   box-shadow: 2px 0 5px rgba(0, 0, 0, 0.1);
+}
+
+.submesh-list-item {
+  margin: 0;
+  padding: 8px 0 8px 8px;
+  text-align: left;
+  cursor: pointer;
+  border-radius: 4px;
+  transition: background 0.2s, color 0.2s;
+}
+.submesh-list-item.active {
+  background: #6af;
+  color: #fff;
+}
+.submesh-list-item.hovered {
+  background: #e0f0ff;
+  color: #333;
 }
 
 .model-controls {
