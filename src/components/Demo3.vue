@@ -61,11 +61,6 @@
           <input type="checkbox" v-model="showBoundingBox" @change="toggleBoundingBox">
           显示包围盒
         </label>
-        <!-- 新增线框模式选项 -->
-        <label>
-          <input type="checkbox" v-model="showWireframe" @change="toggleWireframe">
-          线框模式
-        </label>
       </div>
       
       <!-- 材质控制 -->
@@ -341,7 +336,6 @@ const isMeshDecompose = ref(false); // 是否拆解模型
 const searchQuery = ref(''); // 搜索查询
 let highlightMaterial = null; // 高亮材质
 let selectedMaterial = null; // 选中材质
-const showWireframe = ref(false); // 新增：显示线框
 const useSimplifiedModel = ref(true); // 修改为默认启用
 const simplificationRatio = ref(0.7); // 更激进的简化比例，从0.5提高到0.7
 
@@ -931,10 +925,6 @@ const emergencyQualityReduction = () => {
     if (nonReactiveObjects.renderer) {
       nonReactiveObjects.renderer.setPixelRatio(1.0);
     }
-    
-    // 使用线框模式
-    showWireframe.value = true;
-    toggleWireframe();
     
     // 尝试切换到最低LOD
     if (nonReactiveObjects.modelManager) {
@@ -1787,21 +1777,6 @@ const formatVector = (vector) => {
   return `${vector.x.toFixed(2)}, ${vector.y.toFixed(2)}, ${vector.z.toFixed(2)}`;
 };
 
-// 新增：切换线框显示
-const toggleWireframe = () => {
-  // 直接调用updateMaterial函数更新材质
-  updateMaterial();
-  
-  // 同时更新materialStore中的wireframe设置
-  if (materialStore.getSelectedMaterial) {
-    materialStore.updateMaterial(materialStore.getSelectedMaterial.id, {
-      properties: {
-        wireframe: showWireframe.value
-      }
-    });
-  }
-};
-
 // 新增：重新加载模型（带简化）
 const reloadModel = () => {
   // 重置模型加载状态
@@ -2408,10 +2383,6 @@ const upgradeToStandardMaterial = (meshObject) => {
         
         // 确保双面渲染
         mat.side = THREE.DoubleSide;
-        
-        if (showWireframe.value) {
-          mat.wireframe = true;
-        }
       } else {
         // 创建新的MeshStandardMaterial
         const newMat = new THREE.MeshStandardMaterial({
@@ -2430,11 +2401,6 @@ const upgradeToStandardMaterial = (meshObject) => {
           side: mat.side || THREE.DoubleSide
         });
         
-        // 如果是线框，保持线框状态
-        if (showWireframe.value) {
-          newMat.wireframe = true;
-        }
-        
         meshObject.material = newMat;
       }
     } else {
@@ -2445,10 +2411,6 @@ const upgradeToStandardMaterial = (meshObject) => {
         roughness: roughness.value,
         side: THREE.DoubleSide
       });
-      
-      if (showWireframe.value) {
-        meshObject.material.wireframe = true;
-      }
     }
   } catch (error) {
     console.error('升级材质时出错:', error);
@@ -2857,8 +2819,7 @@ const updateMaterial = () => {
     materialStore.updateMaterial(materialStore.getSelectedMaterial.id, {
       properties: {
         metalness: metalness.value,
-        roughness: roughness.value,
-        wireframe: showWireframe.value
+        roughness: roughness.value
       }
     });
   }
@@ -2871,14 +2832,12 @@ const updateMaterial = () => {
           if (material && material.isMeshStandardMaterial) {
             material.metalness = metalness.value;
             material.roughness = roughness.value;
-            material.wireframe = showWireframe.value;
             material.needsUpdate = true;
           }
         });
       } else if (object.material && object.material.isMeshStandardMaterial) {
         object.material.metalness = metalness.value;
         object.material.roughness = roughness.value;
-        object.material.wireframe = showWireframe.value;
         object.material.needsUpdate = true;
       }
     }

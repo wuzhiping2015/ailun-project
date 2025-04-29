@@ -183,7 +183,7 @@ export default defineComponent({
       fitCameraToObject: null as
         | ((object: THREE.Object3D, offset?: number) => void)
         | null,
-      currentModel: "STEP203.fbx",
+      currentModel: "阀门.fbx",
       showGrid: true,
       showAxes: true,
       showBoundingBox: false,
@@ -197,7 +197,7 @@ export default defineComponent({
       frameCount: 0,
       modelCategories: {
         船舶模型: [
-          { name: "STEP203模型", path: "STEP203.fbx" },
+          { name: "阀门", path: "阀门.fbx" },
           { name: "船模型 (GLTF)", path: "6.gltf" },
           { name: "船模型1 (FBX)", path: "ship1.fbx" },
           { name: "备用模型 (GLTF)", path: "untitled.gltf" },
