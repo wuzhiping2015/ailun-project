@@ -450,67 +450,16 @@ function loadMesh() {
             throw new Error("无法获取有效的模型组");
           }
 
-          // 优化模型处理
+          // 优化模型处理 - 只添加必要的处理,保持原始材质
           group.traverse((child) => {
             if (child.isMesh) {
+              // 只添加阴影设置
               child.castShadow = true;
               child.receiveShadow = true;
               
-              // 优化几何体
-              if (child.geometry) {
+              // 确保几何体有法线,但不修改材质
+              if (child.geometry && !child.geometry.attributes.normal) {
                 child.geometry.computeVertexNormals();
-                if (!child.geometry.attributes.uv) {
-                  child.geometry.computeVertexNormals();
-                }
-              }
-              
-              // 优化材质
-              if (child.material) {
-                const materials = Array.isArray(child.material) ? child.material : [child.material];
-                materials.forEach(material => {
-                  // 基础材质设置
-                  material.side = THREE.DoubleSide;
-                  material.needsUpdate = true;
-
-                  // 优化PBR材质参数
-                  if (material instanceof THREE.MeshStandardMaterial) {
-                    material.envMapIntensity = 1.0;
-                    material.roughness = Math.min(Math.max(material.roughness, 0.2), 0.8);
-                    material.metalness = Math.min(Math.max(material.metalness, 0.1), 0.9);
-                  } else {
-                    // 如果不是PBR材质，转换为PBR材质
-                    const newMaterial = new THREE.MeshStandardMaterial({
-                      color: material.color || new THREE.Color(0xcccccc),
-                      map: material.map,
-                      metalness: 0.5,
-                      roughness: 0.5,
-                      transparent: material.transparent,
-                      opacity: material.opacity,
-                      side: THREE.DoubleSide
-                    });
-                    child.material = newMaterial;
-                  }
-
-                  // 优化纹理
-                  if (material.map) {
-                    material.map.anisotropy = 16;
-                    material.map.minFilter = THREE.LinearMipmapLinearFilter;
-                    material.map.magFilter = THREE.LinearFilter;
-                    material.map.needsUpdate = true;
-                  }
-
-                  // 优化法线贴图
-                  if (material.normalMap) {
-                    material.normalMap.anisotropy = 16;
-                    material.normalScale.set(1, 1);
-                  }
-
-                  // 优化环境遮挡贴图
-                  if (material.aoMap) {
-                    material.aoMap.anisotropy = 16;
-                    material.aoMapIntensity = 1.0;
-                  }
-                });
               }
             }
           });
@@ -524,7 +473,7 @@ function loadMesh() {
 
           // 计算合适的缩放比例
           const maxDim = Math.max(size.x, size.y, size.z);
-          const scale = maxDim > 0 ? 5 / maxDim : 1;
+          const scale = maxDim > 0 ? 10 / maxDim : 1; // 调整缩放基准值
 
           // 设置模型变换
           group.scale.setScalar(scale);
@@ -551,6 +500,17 @@ function loadMesh() {
             });
             data.mixers.push(mixer);
           }
+
+          // 更新相机位置以适应模型
+          const distance = maxDim * 2;
+          data.camera.position.set(
+            distance,
+            distance,
+            distance
+          );
+          data.camera.lookAt(0, 0, 0);
+          data.orbitControls.target.set(0, 0, 0);
+          data.orbitControls.update();
 
           setTimeout(() => {
             getSubMeshes();
