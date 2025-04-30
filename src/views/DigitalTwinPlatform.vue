@@ -134,7 +134,7 @@
               <div class="viewer-3d">
                 <component :is="activeComponent"></component>
               </div>
-              <div class="floating-panel">
+              <!-- <div class="floating-panel">
                 <div class="floating-section">
                   <div class="floating-title">模型选择</div>
                   <el-button-group>
@@ -156,7 +156,7 @@
                   <div class="floating-title">部件信息</div>
                   <div class="floating-info">点击模型部件查看详情</div>
                 </div>
-              </div>
+              </div> -->
             </div>
           </div>
         </el-main>
