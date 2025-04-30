@@ -10,7 +10,7 @@ import DigitalTwinPlatform from "../views/DigitalTwinPlatform.vue";
 // 定义路由
 const routes = [{
         path: "/",
-        redirect: "/digital-twin",
+        redirect: "/Demo2",
     },
     {
         path: "/digital-twin",

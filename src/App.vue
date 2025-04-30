@@ -3,13 +3,13 @@
     <div class="nav-menu">
       <router-link to="/Demo" class="nav-button">模型查看器</router-link>
       <router-link to="/Demo2" class="nav-button">模型查看器2</router-link>
-      <router-link to="/model-viewer" class="nav-button">3D模型查看器</router-link>
-      <router-link to="/digital-twin" class="nav-button">digital-twin</router-link>
+      <!-- <router-link to="/model-viewer" class="nav-button">3D模型查看器</router-link>
+      <router-link to="/digital-twin" class="nav-button">digital-twin</router-link> -->
     </div>
     <div class="content-container">
       <router-view />
     </div>
-    
+
     <!-- 全局通知组件 -->
     <NotificationToast />
   </div>
@@ -17,9 +17,9 @@
 
 <script setup>
 // 使用组合式API
-import { useUIStore } from './stores/uiStore';
-import { onMounted } from 'vue';
-import NotificationToast from './components/NotificationToast.vue';
+import { useUIStore } from "./stores/uiStore";
+import { onMounted } from "vue";
+import NotificationToast from "./components/NotificationToast.vue";
 
 // 初始化UI存储
 const uiStore = useUIStore();
@@ -27,16 +27,17 @@ const uiStore = useUIStore();
 // 组件挂载时初始化UI状态
 onMounted(() => {
   uiStore.initStore();
-  
+
   // 监听窗口大小变化
-  window.addEventListener('resize', () => {
+  window.addEventListener("resize", () => {
     uiStore.updateViewportSize(window.innerWidth, window.innerHeight);
   });
 });
 </script>
 
 <style>
-html, body {
+html,
+body {
   margin: 0;
   padding: 0;
   height: 100%;
