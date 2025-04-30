@@ -6,6 +6,8 @@ import Demo2 from "../components/Demo2.vue";
 import Demo from "../components/Demo.vue";
 // 导入数字孪生平台组件
 import DigitalTwinPlatform from "../views/DigitalTwinPlatform.vue";
+// 导入海事地图组件
+import MaritimeMap from "../views/MaritimeMap.vue";
 
 // 定义路由
 const routes = [{
@@ -18,6 +20,14 @@ const routes = [{
         component: DigitalTwinPlatform,
         meta: {
             title: "数字孪生监控平台",
+        },
+    },
+    {
+        path: "/maritime-map",
+        name: "MaritimeMap",
+        component: MaritimeMap,
+        meta: {
+            title: "海事地图系统",
         },
     },
     {
@@ -44,6 +54,9 @@ const routes = [{
             title: "3D模型查看器",
         },
     },
+
+
+
     // 捕获所有未匹配的路由，重定向到首页
     {
         path: "/:pathMatch(.*)*",
