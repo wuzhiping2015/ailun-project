@@ -346,7 +346,7 @@ export default {
       // 尝试从环境变量获取token，如果不存在则使用默认值
       mapboxToken: "",
       center: [120.15, 30.26],
-      zoomLevel: 5,
+      zoomLevel: 8,
       currentMapType: 'standard', // 默认标准地图
       weatherVisible: true,
       shipsVisible: true,
@@ -1577,10 +1577,7 @@ export default {
   backdrop-filter: blur(10px);
 }
 
-.info-content {
-  padding: 20px;
-}
-
+ 
 .info-header {
   border-bottom: 2px solid rgba(52, 152, 219, 0.3);
   padding-bottom: 10px;
@@ -2060,7 +2057,7 @@ export default {
 }
 
 .info-content {
-  padding: 20px;
+  padding: 20px 20px 40px 20px;
 }
 
 /* 添加船舶类型图例样式 */
