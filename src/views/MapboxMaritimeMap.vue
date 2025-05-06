@@ -412,6 +412,74 @@ export default {
           sog: '9kn', // Speed Over Ground
           fore_draft: 5.0,
           aft_draft: 5.4
+        },
+        { 
+          id: 'ship6', 
+          name: '沪甬之星', 
+          position: [121.47, 31.23], 
+          speed: 18, 
+          heading: 150,
+          routeIndex: 0,
+          marker: null,
+          type: '集装箱船',
+          length: 320,
+          width: 43,
+          draft: 15.2,
+          capacity: '9500 TEU',
+          status: '准备启航',
+          destination: '宁波舟山港',
+          eta: '2023-12-29 16:30',
+          // 添加航行轨迹记录
+          trackHistory: [[121.47, 31.23]],
+          // 模拟数据 - 剩余燃油
+          fuelRemaining: 98,
+          // 模拟数据 - 当前载货量
+          cargoLoad: 88,
+          // 船舶识别信息
+          mmsi: 10095,
+          imo: '1020990',
+          callsign: 'COSCO6688',
+          // 更多详细信息
+          nameEn: 'Shanghai-Ningbo Star',
+          flag: 'CN',
+          cog: 150, // Course Over Ground
+          sog: '18kn', // Speed Over Ground
+          fore_draft: 14.8,
+          aft_draft: 15.6
+        },
+        { 
+          id: 'ship7', 
+          name: '东海快航', 
+          position: [121.56, 29.86], 
+          speed: 20, 
+          heading: 330,
+          routeIndex: 0,
+          marker: null,
+          type: '滚装船',
+          length: 200,
+          width: 28,
+          draft: 9.8,
+          capacity: '2300 LUM',
+          status: '正常航行',
+          destination: '上海港',
+          eta: '2023-12-29 11:30',
+          // 添加航行轨迹记录
+          trackHistory: [[121.56, 29.86]],
+          // 模拟数据 - 剩余燃油
+          fuelRemaining: 85,
+          // 模拟数据 - 当前载货量
+          cargoLoad: 75,
+          // 船舶识别信息
+          mmsi: 10096,
+          imo: '1020991',
+          callsign: 'CNEXP5566',
+          // 更多详细信息
+          nameEn: 'East Sea Express',
+          flag: 'CN',
+          cog: 330, // Course Over Ground
+          sog: '20kn', // Speed Over Ground
+          fore_draft: 9.5,
+          aft_draft: 10.1
         }
       ],
       selectedShip: null,
@@ -470,6 +538,40 @@ export default {
           [121.0, 29.7],
           [120.9, 29.8],
           [120.8, 29.9]
+        ],
+        ship6: [
+          [121.47, 31.23], // 上海港
+          [121.52, 31.15],
+          [121.58, 31.05],
+          [121.65, 30.95],
+          [121.68, 30.85],
+          [121.70, 30.75],
+          [121.72, 30.65],
+          [121.69, 30.55],
+          [121.65, 30.45],
+          [121.60, 30.35],
+          [121.58, 30.25],
+          [121.57, 30.15],
+          [121.58, 30.05],
+          [121.57, 29.95],
+          [121.56, 29.86]  // 宁波舟山港
+        ],
+        ship7: [
+          [121.56, 29.86],  // 宁波舟山港
+          [121.57, 29.95],
+          [121.58, 30.05],
+          [121.57, 30.15],
+          [121.58, 30.25],
+          [121.60, 30.35],
+          [121.65, 30.45],
+          [121.69, 30.55],
+          [121.72, 30.65],
+          [121.70, 30.75],
+          [121.68, 30.85],
+          [121.65, 30.95],
+          [121.58, 31.05],
+          [121.52, 31.15],
+          [121.47, 31.23]  // 上海港
         ]
       },
       // 添加航线颜色
@@ -478,12 +580,20 @@ export default {
         ship2: '#0088FF', // 蓝色
         ship3: '#FF8800', // 橙色
         ship4: '#27ae60', // 绿色
-        ship5: '#8e44ad'  // 紫色
+        ship5: '#8e44ad',  // 紫色
+        ship6: '#3498db', // 蓝色
+        ship7: '#27ae60'  // 绿色
       },
       weatherArea: null,
       routePolylines: {},
       shipTracks: {},  // 存储船舶实际航迹
-      ports: [],
+      ports: [
+        { name: '青岛港', position: [120.316, 36.0839], country: '中国', info: '中国重要港口' },
+        { name: '大连港', position: [121.6147, 38.9673], country: '中国', info: '东北地区重要港口' },
+        // 添加上海港和宁波-舟山港
+        { name: '上海港', position: [121.47, 31.23], country: '中国', info: '全球最大集装箱港口之一，中国第一大港' },
+        { name: '宁波-舟山港', position: [121.56, 29.86], country: '中国', info: '全球最大的货物吞吐量港口，宁波港和舟山港合并而成' }
+      ],
       weatherMarker: null,
       // 添加历史路径是否显示的开关
       showTrackHistory: true,
