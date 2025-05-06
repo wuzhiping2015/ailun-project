@@ -13,6 +13,9 @@
         <button @click="toggleWeather">
           天气显示: {{ weatherVisible ? "开" : "关" }}
         </button>
+        <button @click="centerOnShanghaiNingboRoute" class="focus-route-btn">
+          聚焦上海-宁波航线
+        </button>
         <div class="zoom-control">
           <label>缩放级别: {{ zoomLevel.toFixed(1) }}</label>
           <input
@@ -86,6 +89,11 @@
             </button>
           </div>
         </div>
+        
+        <!-- 添加历史回放模式按钮 -->
+        <button @click="enterHistoryPlaybackMode" class="history-mode-btn">
+          Enter History Playback Mode
+        </button>
       </div>
       
       <div class="coordinates">
@@ -99,26 +107,26 @@
         <h3>地图加载错误</h3>
         <p class="error-message">{{ mapError }}</p>
 
-        <!-- 关于Leaflet地图加载的问题 -->
+        <!-- 关于Leaflet地图加载的问�?-->
         <div>
-          <p class="error-tip">解决方案：</p>
+          <p class="error-tip">解决方案</p>
           <ol>
-            <li>检查网络连接，确保能够访问 unpkg.com 获取Leaflet库</li>
-            <li>如果网络问题导致无法加载Leaflet，您可以下载Leaflet并本地引入</li>
-            <li>如果您在中国大陆，可以考虑使用国内CDN：<code>https://cdn.bootcdn.net/ajax/libs/leaflet/1.9.4/leaflet.js</code></li>
+            <li>检查网络连接，确保能够访问 unpkg.com 获取Leaflet</li>
+            <li>如果网络问题导致无法加载Leaflet，您可以下载Leaflet并本地引</li>
+            <li>如果您在中国大陆，可以考虑使用国内CDN https://cdn.bootcdn.net/ajax/libs/leaflet/1.9.4/leaflet.js</li>
           </ol>
           <p class="error-tip">
             优势提示:
             <ul>
-              <li>✅ Leaflet + OpenStreetMap 无需API密钥</li>
-              <li>✅ 不依赖第三方Cookie，避免Chrome浏览器限制</li>
-              <li>✅ 开源、轻量，加载速度快</li>
+              <li>�?Leaflet + OpenStreetMap 无需API密钥</li>
+              <li>�?不依赖第三方Cookie，避免Chrome浏览器限</li>
+              <li>�?开源、轻量，加载速度</li>
             </ul>
           </p>
         </div>
 
         <button @click="retryMapLoad" class="retry-button">重试加载</button>
-        <button @click="checkEnvironment" class="check-button">环境检查</button>
+        <button @click="checkEnvironment" class="check-button">环境检</button>
       </div>
     </div>
 
@@ -197,7 +205,7 @@
               
               <div class="info-row">
                 <span class="info-label">速度:</span>
-                <span class="info-value">{{ selectedShip.speed.toFixed(1) }} 节</span>
+                <span class="info-value">{{ selectedShip.speed.toFixed(1) }} </span>
               </div>
               <div class="info-row">
                 <span class="info-label">目的地:</span>
@@ -213,21 +221,21 @@
           <div class="info-card vessel-info">
             <div class="card-header">
               <h4>船舶规格</h4>
-              <div class="card-icon">⚓</div>
+              <div class="card-icon"></div>
             </div>
             <div class="card-content">
               <div class="ship-dimensions">
                 <div class="dimension-item">
                   <span class="dimension-label">长度:</span>
-                  <span class="dimension-value">{{ selectedShip.length }}米</span>
+                  <span class="dimension-value">{{ selectedShip.length }}</span>
                 </div>
                 <div class="dimension-item">
                   <span class="dimension-label">宽度:</span>
-                  <span class="dimension-value">{{ selectedShip.width }}米</span>
+                  <span class="dimension-value">{{ selectedShip.width }}</span>
                 </div>
                 <div class="dimension-item">
                   <span class="dimension-label">吃水:</span>
-                  <span class="dimension-value">{{ selectedShip.draft }}米</span>
+                  <span class="dimension-value">{{ selectedShip.draft }}</span>
                 </div>
               </div>
               
@@ -239,11 +247,11 @@
               <div class="draft-display">
                 <div class="draft-item">
                   <span class="draft-label">船首吃水:</span>
-                  <span class="draft-value">{{ selectedShip.fore_draft }}米</span>
+                  <span class="draft-value">{{ selectedShip.fore_draft }}</span>
                 </div>
                 <div class="draft-item">
                   <span class="draft-label">船尾吃水:</span>
-                  <span class="draft-value">{{ selectedShip.aft_draft }}米</span>
+                  <span class="draft-value">{{ selectedShip.aft_draft }}</span>
                 </div>
                 <div class="ship-profile">
                   <div class="ship-hull"></div>
@@ -275,7 +283,7 @@
                 
                 <div class="gauge cargo-gauge">
                   <div class="gauge-header">
-                    <div class="gauge-label">载货量</div>
+                    <div class="gauge-label">载货</div>
                     <div class="gauge-value">{{ selectedShip.cargoLoad }}%</div>
                   </div>
                   <div class="gauge-bar">
@@ -304,7 +312,7 @@
             <span class="btn-icon">🔍</span> 居中显示
           </button>
           <button class="action-btn close-btn" @click="closeInfoPanel">
-            <span class="btn-icon">✖</span> 关闭
+            <span class="btn-icon"></span> 关闭
           </button>
         </div>
       </div>
@@ -315,7 +323,7 @@
         <h3>环境信息</h3>
         <p>
           <strong>Mapbox令牌状态：</strong>
-          {{ mapboxToken ? "已设置" : "未设置" }}
+          {{ mapboxToken ? "已设" : "未设" }}
         </p>
         <p>
           <strong>令牌值：</strong> <code>{{ maskToken(mapboxToken) }}</code>
@@ -325,12 +333,60 @@
         </p>
         <p><strong>浏览器：</strong> {{ getBrowserInfo() }}</p>
         <p>
-          <strong>Cookie设置：</strong>
-          {{ areCookiesEnabled() ? "已启用" : "已禁用或部分禁用" }}
+          <strong>Cookie设置</strong>
+          {{ areCookiesEnabled() ? "已启" : "已禁用或部分禁用" }}
         </p>
         <button @click="closeEnvironmentPanel">关闭</button>
       </div>
     </div>
+
+    <!-- 添加历史回放日期选择浮动面板 -->
+    <div v-if="historyPlaybackMode" class="history-playback-panel">
+      <div class="history-panel-content">
+        <h3>History Playback</h3>
+        
+        <div class="date-range-selector">
+          <div class="date-input">
+            <label>Start Time:</label>
+            <input type="datetime-local" v-model="historyTimeRange.start" />
+          </div>
+          <div class="date-input">
+            <label>End Time:</label>
+            <input type="datetime-local" v-model="historyTimeRange.end" />
+          </div>
+          <button @click="applyTimeFilter" class="primary-button">Apply Filter</button>
+        </div>
+        
+        <div class="playback-controls">
+          <button @click="startHistoryPlayback" :disabled="isHistoryPlaying" class="play-button">
+            <span class="control-icon">&#9658;</span> Play
+          </button>
+          <button @click="pauseHistoryPlayback" :disabled="!isHistoryPlaying" class="pause-button">
+            <span class="control-icon">&#10074;&#10074;</span> Pause
+          </button>
+          <button @click="stopHistoryPlayback" :disabled="!historyPlaybackActive" class="stop-button">
+            <span class="control-icon">&#9724;</span> Stop
+          </button>
+        </div>
+        
+        <div class="playback-progress">
+          <div class="time-display">{{ formatPlaybackTime(historyPlaybackCurrentTime) }}</div>
+          <input 
+            type="range" 
+            min="0" 
+            :max="historyPlaybackTotalSteps" 
+            v-model="historyPlaybackCurrentStep"
+            @input="seekHistoryPlayback"
+            class="time-slider"
+          />
+        </div>
+        
+        <button @click="exitHistoryPlayback" class="exit-button">
+          Back to Real-time Mode
+        </button>
+      </div>
+    </div>
+
   </div>
 </template>
 
@@ -343,10 +399,10 @@ export default {
       mapLoaded: false,
       mapError: null,
       showEnvironmentInfo: false,
-      // 尝试从环境变量获取token，如果不存在则使用默认值
+      // 尝试从环境变量获取token，如果不存在则使用默认�?
       mapboxToken: "",
-      center: [120.15, 30.26],
-      zoomLevel: 8,
+      center: [121.52, 30.54], // 修改初始中心点为上海港和宁波舟山港之�?
+      zoomLevel: 9, // 调整初始缩放级别以更好地查看航线
       currentMapType: 'standard', // 默认标准地图
       weatherVisible: true,
       shipsVisible: true,
@@ -390,7 +446,7 @@ export default {
         },
         { 
           id: 'ship2', 
-          name: '远洋探索者', 
+          name: '远洋探索号', 
           position: [121.0, 31.0], 
           speed: 12, 
           heading: 135,
@@ -591,6 +647,36 @@ export default {
           sog: '20kn', // Speed Over Ground
           fore_draft: 9.5,
           aft_draft: 10.1
+        },
+        // 新增一艘船在上海港准备前往宁波舟山�?
+        { 
+          id: 'ship8', 
+          name: '沪甬明珠', 
+          position: [121.47, 31.23], 
+          speed: 0, 
+          heading: 150,
+          routeIndex: 0,
+          marker: null,
+          type: '集装箱船',
+          length: 350,
+          width: 45,
+          draft: 15.6,
+          capacity: '10200 TEU',
+          status: '准备启航',
+          destination: '宁波舟山港',
+          eta: '2023-12-30 18:30',
+          trackHistory: [[121.47, 31.23]],
+          fuelRemaining: 100,
+          cargoLoad: 92,
+          mmsi: 10097,
+          imo: '1020995',
+          callsign: 'COSCO9977',
+          nameEn: 'Shanghai-Ningbo Pearl',
+          flag: 'CN',
+          cog: 150,
+          sog: '0kn',
+          fore_draft: 15.2,
+          aft_draft: 16.0
         }
       ],
       selectedShip: null,
@@ -651,38 +737,60 @@ export default {
           [120.8, 29.9]
         ],
         ship6: [
-          [121.47, 31.23], // 上海港
-          [121.52, 31.15],
-          [121.58, 31.05],
-          [121.65, 30.95],
-          [121.68, 30.85],
-          [121.70, 30.75],
-          [121.72, 30.65],
-          [121.69, 30.55],
-          [121.65, 30.45],
-          [121.60, 30.35],
-          [121.58, 30.25],
-          [121.57, 30.15],
-          [121.58, 30.05],
-          [121.57, 29.95],
-          [121.56, 29.86]  // 宁波舟山港
+          [121.47, 31.23], // 上海�?
+          [121.48, 31.20], // 黄浦江出海口
+          [121.50, 31.15], // 沿黄浦江航道
+          [121.53, 31.10], // 长江口段
+          [121.56, 31.05], // 长江航道
+          [121.60, 30.95], // 长江主航�?
+          [121.68, 30.85], // 长江口出海口
+          [121.76, 30.78], // 避开长江口沙洲区
+          [121.85, 30.70], // 进入东海水域
+          [121.92, 30.60], // 沿东海深水航�?
+          [121.88, 30.45], // 避开东海渔场
+          [121.82, 30.35], // 避开舟山群岛北部
+          [121.75, 30.22], // 舟山水域
+          [121.67, 30.10], // 舟山群岛水道
+          [121.61, 29.95], // 靠近宁波港区
+          [121.56, 29.86]  // 宁波舟山�?
         ],
         ship7: [
-          [121.56, 29.86],  // 宁波舟山港
-          [121.57, 29.95],
-          [121.58, 30.05],
-          [121.57, 30.15],
-          [121.58, 30.25],
-          [121.60, 30.35],
-          [121.65, 30.45],
-          [121.69, 30.55],
-          [121.72, 30.65],
-          [121.70, 30.75],
-          [121.68, 30.85],
-          [121.65, 30.95],
-          [121.58, 31.05],
-          [121.52, 31.15],
-          [121.47, 31.23]  // 上海港
+          [121.56, 29.86],  // 宁波舟山�?
+          [121.61, 29.95],  // 离开港口
+          [121.67, 30.10],  // 舟山群岛水道
+          [121.75, 30.22],  // 舟山水域
+          [121.82, 30.35],  // 避开舟山群岛北部
+          [121.88, 30.45],  // 避开东海渔场
+          [121.92, 30.60],  // 沿东海深水航�?
+          [121.85, 30.70],  // 进入东海水域
+          [121.76, 30.78],  // 避开长江口沙洲区
+          [121.68, 30.85],  // 长江口出海口
+          [121.60, 30.95],  // 长江主航�?
+          [121.56, 31.05],  // 长江航道
+          [121.53, 31.10],  // 长江口段
+          [121.50, 31.15],  // 沿黄浦江航道
+          [121.48, 31.20],  // 黄浦江出海口
+          [121.47, 31.23]   // 上海�?
+        ],
+        // 新增的上海港到宁波舟山港的航线，遵循航海规则
+        ship8: [
+          [121.47, 31.23], // 上海�?
+          [121.49, 31.19], // 黄浦江航�?
+          [121.52, 31.14], // 黄浦江出海口
+          [121.55, 31.08], // 长江口内航道
+          [121.59, 31.02], // 长江口航�?
+          [121.65, 30.95], // 长江航道
+          [121.73, 30.87], // 避开南槽浅滩
+          [121.82, 30.78], // 避开九段�?
+          [121.90, 30.68], // 进入东海深水�?
+          [121.94, 30.58], // 东海主航�?
+          [121.90, 30.46], // 东海航道转向
+          [121.84, 30.34], // 绕行舟山北部岛屿
+          [121.77, 30.24], // 避开舟山渔场
+          [121.69, 30.12], // 舟山航道
+          [121.62, 30.00], // 靠近港口
+          [121.58, 29.92], // 港口引航�?
+          [121.56, 29.86]  // 宁波舟山�?
         ]
       },
       // 添加航线颜色
@@ -692,8 +800,9 @@ export default {
         ship3: '#FF8800', // 橙色
         ship4: '#27ae60', // 绿色
         ship5: '#8e44ad',  // 紫色
-        ship6: '#3498db', // 蓝色
-        ship7: '#27ae60'  // 绿色
+        ship6: '#FF3300', // 上海到宁波舟山航�?- 亮红�?
+        ship7: '#27ae60',  // 绿色
+        ship8: '#FF3300'   // 新增的宁波舟山到上海航线 - 亮红�?
       },
       weatherArea: null,
       routePolylines: {},
@@ -706,9 +815,9 @@ export default {
         { name: '宁波-舟山港', position: [121.56, 29.86], country: '中国', info: '全球最大的货物吞吐量港口，宁波港和舟山港合并而成' }
       ],
       weatherMarker: null,
-      // 添加历史路径是否显示的开关
+      // 添加历史路径是否显示的开�?
       showTrackHistory: true,
-      // 添加示范路径是否显示的开关
+      // 添加示范路径是否显示的开�?
       showPlannedRoute: true,
       // 添加模拟速度选项
       speedOptions: [
@@ -722,7 +831,20 @@ export default {
         { name: '上海港', position: [31.23, 121.47], type: '集装箱港口', capacity: '4350万TEU/年', berths: 46 },
         { name: '宁波舟山港', position: [29.86, 121.56], type: '综合港口', capacity: '3100万TEU/年', berths: 39 },
         { name: '洋山港', position: [30.62, 122.09], type: '深水港', capacity: '2500万TEU/年', berths: 32 }
-      ]
+      ],
+      // 新增历史回放相关状态
+      historyPlaybackMode: false,
+      historyTimeRange: {
+        start: '',
+        end: ''
+      },
+      historyPlaybackCurrentTime: null,
+      historyPlaybackTotalSteps: 100,
+      historyPlaybackCurrentStep: 0,
+      historyPlaybackActive: false,
+      isHistoryPlaying: false,
+      historyPlaybackInterval: null,
+      filteredHistory: {}
     };
   },
   computed: {
@@ -737,7 +859,7 @@ export default {
     // 修改为加载Leaflet地图
     this.loadLeafletMap();
     
-    // 监听窗口大小变化以调整地图大小
+    // 监听窗口大小变化以调整地图大�?
     window.addEventListener('resize', this.handleResize);
   },
   beforeUnmount() {
@@ -746,7 +868,7 @@ export default {
   },
   methods: {
     loadLeafletMap() {
-      // 动态加载Leaflet脚本和样式
+      // 动态加载Leaflet脚本和样�?
       const linkElement = document.createElement('link');
       linkElement.rel = 'stylesheet';
       linkElement.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
@@ -775,7 +897,7 @@ export default {
         // 创建Leaflet地图实例
         this.map = L.map(this.$refs.mapContainer).setView(this.center, this.zoomLevel);
         
-        // 添加OpenStreetMap图层（免费，无需密钥）
+        // 添加OpenStreetMap图层（免费，无需密钥�?
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
           attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
         }).addTo(this.map);
@@ -799,17 +921,17 @@ export default {
         this.map.on('moveend', this.updateCenter);
         this.map.on('zoomend', this.updateZoomLevel);
       } catch (error) {
-        console.error('地图初始化失败:', error);
-        this.mapError = '地图初始化失败: ' + error.message;
+        console.error('地图初始化失�?', error);
+        this.mapError = '地图初始化失�? ' + error.message;
       }
     },
     
     addPorts() {
       if (!this.mapLoaded || !window.L) return;
       
-      // 使用扩展的港口数据
+      // 使用扩展的港口数�?
       this.portData.forEach(port => {
-        // 使用自定义图标
+        // 使用自定义图�?
         const portIcon = L.divIcon({
           html: `<div class="port-icon">⚓</div>`,
           className: 'port-marker',
@@ -840,7 +962,7 @@ export default {
     addWeatherLayer() {
       if (!this.mapLoaded || !window.L) return;
       
-      // 定义天气区域的坐标 (注意顺序：[lat, lng])
+      // 定义天气区域的坐�?(注意顺序：[lat, lng])
       const weatherCoords = [
         [29.5, 119.5],
         [29.5, 120.5],
@@ -848,7 +970,7 @@ export default {
         [30.5, 119.5]
       ];
       
-      // 创建多边形
+      // 创建多边�?
       this.weatherArea = L.polygon(weatherCoords, {
         color: '#FF0000',
         fillColor: '#FF0000',
@@ -857,7 +979,7 @@ export default {
       
       // 创建标记显示天气信息
       this.weatherMarker = L.marker([30, 120]).addTo(this.map);
-      this.weatherMarker.bindPopup('台风预警<br>风速: 25节<br>浪高: 3.5米').openPopup();
+      this.weatherMarker.bindPopup('台风预警<br>风力 25级<br>浪高: 3.5米').openPopup();
     },
     
     addRoutesLayer() {
@@ -868,29 +990,50 @@ export default {
         // 转换坐标顺序为Leaflet格式
         const routeLatLng = this.routes[shipId].map(coord => [coord[1], coord[0]]);
         
-        // 使用船舶特定的颜色
+        // 使用船舶特定的颜�?
         const routeColor = this.routeColors[shipId] || '#00FF00';
         
-        // 创建折线
+        // 判断是否为上海到宁波舟山航线，给予特殊样�?
+        const isShaNing = shipId === 'ship6' || shipId === 'ship8';
+        
+        // 创建折线 - 为上�?宁波航线使用粗线和不同的虚线样式
         const polyline = L.polyline(routeLatLng, {
           color: routeColor,
-          weight: 2,
-          dashArray: '5, 5',
-          opacity: 0.7
+          weight: isShaNing ? 6 : 2, // 上海-宁波航线更粗
+          dashArray: isShaNing ? '15, 10' : '5, 5', // 上海-宁波航线使用不同的蚂蚁线效果
+          opacity: isShaNing ? 0.9 : 0.7 // 上海-宁波航线更明�?
         }).addTo(this.map);
         
         // 保存航线引用
         this.routePolylines[shipId] = polyline;
         
-        // 创建轨迹线 - 用于记录实际航行路径
+        // 创建轨迹�?- 用于记录实际航行路径
         const trackLine = L.polyline([], {
           color: routeColor,
-          weight: 3,
-          opacity: 0.9
+          weight: isShaNing ? 5 : 3, // 上海-宁波航线更粗
+          opacity: isShaNing ? 1.0 : 0.9 // 上海-宁波航线更明�?
         }).addTo(this.map);
         
         this.shipTracks[shipId] = trackLine;
       });
+      
+      // 如果上海-宁波航线存在，让地图显示适应这条航线
+      if (this.routePolylines['ship6']) {
+        // 将视图中心设置到上海-宁波航线中间
+        const route = this.routes['ship6'];
+        const midPointIndex = Math.floor(route.length / 2);
+        const midPoint = route[midPointIndex];
+        
+        // 如果有map对象，修改视�?
+        if (this.map) {
+          // 设置上海-宁波航线的边界为地图显示区域
+          const bounds = this.routePolylines['ship6'].getBounds();
+          this.map.fitBounds(bounds, {
+            padding: [50, 50], // 添加一些内边距
+            maxZoom: 10        // 限制最大缩放级�?
+          });
+        }
+      }
     },
     
     addShips() {
@@ -1010,7 +1153,7 @@ export default {
     toggleShips() {
       this.shipsVisible = !this.shipsVisible;
       
-      // 显示/隐藏所有船舶
+      // 显示/隐藏所有船�?
       this.ships.forEach(ship => {
         if (ship.marker) {
           if (this.shipsVisible) {
@@ -1021,7 +1164,7 @@ export default {
         }
       });
       
-      // 显示/隐藏所有航线
+      // 显示/隐藏所有航�?
       Object.values(this.routePolylines).forEach(polyline => {
         if (this.shipsVisible) {
           polyline.addTo(this.map);
@@ -1079,9 +1222,9 @@ export default {
             // 获取下一个位置点
             if (ship.routeIndex < route.length - 1) {
               // 根据模拟速度计算新的位置
-              ship.routeIndex += 0.1 * this.simulationSpeed; // 细化移动，使动画更流畅
+              ship.routeIndex += 0.1 * this.simulationSpeed; // 细化移动，使动画更流�?
               
-              // 确保routeIndex不超过数组上限
+              // 确保routeIndex不超过数组上�?
               if (ship.routeIndex >= route.length - 1) {
                 ship.routeIndex = route.length - 1;
               }
@@ -1094,7 +1237,7 @@ export default {
               const currentPos = route[currentIndex];
               const nextPos = route[nextIndex];
               
-              // 线性插值计算当前位置
+              // 线性插值计算当前位�?
               const interpolatedLng = currentPos[0] + (nextPos[0] - currentPos[0]) * fraction;
               const interpolatedLat = currentPos[1] + (nextPos[1] - currentPos[1]) * fraction;
               ship.position = [interpolatedLng, interpolatedLat];
@@ -1105,7 +1248,7 @@ export default {
               // 更新速度（模拟变化）
               ship.speed = Math.max(10, Math.min(18, ship.speed + (Math.random() - 0.5)));
               
-              // 更新船舶状态
+              // 更新船舶状�?
               if (ship.routeIndex > route.length * 0.9) {
                 ship.status = '即将抵达';
               } else if (ship.routeIndex > route.length * 0.5) {
@@ -1126,13 +1269,13 @@ export default {
                 minute: '2-digit'
               });
               
-              // 减少燃油剩余量
+              // 减少燃油剩余�?
               ship.fuelRemaining = Math.max(0, ship.fuelRemaining - 0.05 * this.simulationSpeed);
               
               // 记录航迹
               ship.trackHistory.push([...ship.position]);
               
-              // 更新轨迹线
+              // 更新轨迹�?
               if (this.showTrackHistory && this.shipTracks[ship.id]) {
                 const trackLatLng = ship.trackHistory.map(coord => [coord[1], coord[0]]);
                 this.shipTracks[ship.id].setLatLngs(trackLatLng);
@@ -1152,24 +1295,24 @@ export default {
                 ship.heading = this.calculateHeading(route[0], nextPos);
               }
               
-              // 重置燃油和货物
+              // 重置燃油和货�?
               ship.fuelRemaining = 100;
               ship.cargoLoad = Math.floor(Math.random() * 30) + 70; // 70-100%
               ship.status = '重新起航';
             }
             
-            // 更新船舶标记位置和角度
+            // 更新船舶标记位置和角�?
             if (ship.marker) {
-              // Leaflet使用setLatLng，注意坐标顺序
+              // Leaflet使用setLatLng，注意坐标顺�?
               const latLng = [ship.position[1], ship.position[0]];
               ship.marker.setLatLng(latLng);
               
-              // 基于船舶类型选择不同的图标
+              // 基于船舶类型选择不同的图�?
               let shipSymbol = '▲'; // 默认
               let iconColor = this.routeColors[ship.id] || '#2980b9';
               let iconScale = 1.2; // 默认缩放
               
-              // 根据船舶类型确定图标和颜色
+              // 根据船舶类型确定图标和颜�?
               if (ship.type === '集装箱船') {
                 shipSymbol = '▲';
                 iconColor = '#3498db'; // 蓝色
@@ -1230,7 +1373,7 @@ export default {
     },
     
     calculateHeading(startPos, endPos) {
-      // 计算两点之间的航向角度
+      // 计算两点之间的航向角�?
       const startLng = startPos[0];
       const startLat = startPos[1];
       const endLng = endPos[0];
@@ -1320,12 +1463,12 @@ export default {
     },
     
     checkEnvironment() {
-      // 检查Leaflet地图API加载状态
+      // 检查Leaflet地图API加载状�?
       const leafletLoaded = window.L !== undefined;
       
       this.showEnvironmentInfo = true;
       
-      // 在环境信息中添加Leaflet地图状态
+      // 在环境信息中添加Leaflet地图状�?
       this.$nextTick(() => {
         const envContent = document.querySelector('.env-content');
         if (envContent) {
@@ -1333,10 +1476,10 @@ export default {
           mapStatus.innerHTML = `<strong>Leaflet地图API状态：</strong> ${leafletLoaded ? '已加载' : '<span style="color: red">未加载</span>'}`;
           
           const openSourceInfo = document.createElement('p');
-          openSourceInfo.innerHTML = '<strong>地图信息：</strong> <span style="color: green">使用开源Leaflet + OpenStreetMap，无需API密钥</span>';
+          openSourceInfo.innerHTML = '<strong>地图信息</strong> <span style="color: green">使用开源Leaflet + OpenStreetMap，无需API密钥</span>';
           
           const cookieWarning = document.createElement('p');
-          cookieWarning.innerHTML = '<strong>提示：</strong> <span style="color: green">OpenStreetMap不依赖第三方Cookie，避免了Chrome浏览器限制问题</span>';
+          cookieWarning.innerHTML = '<strong>提示</strong> <span style="color: green">OpenStreetMap不依赖第三方Cookie，避免了Chrome浏览器限制问</span>';
           
           envContent.appendChild(mapStatus);
           envContent.appendChild(openSourceInfo);
@@ -1373,7 +1516,7 @@ export default {
       if (this.map && ship && ship.position) {
         // 注意坐标转换：Leaflet使用[lat, lng]格式
         const latLng = [ship.position[1], ship.position[0]];
-        this.map.setView(latLng, 10); // 10是一个适合查看船舶的缩放级别
+        this.map.setView(latLng, 10); // 10是一个适合查看船舶的缩放级�?
       }
     },
     
@@ -1391,6 +1534,348 @@ export default {
       } else {
         return 'linear-gradient(90deg, #2ecc71, #27ae60)';
       }
+    },
+    
+    // 添加新方法：聚焦到上�?宁波舟山航线
+    centerOnShanghaiNingboRoute() {
+      if (!this.map || !this.routePolylines['ship6']) return;
+      
+      // 获取上海-宁波舟山航线的边�?
+      const bounds = this.routePolylines['ship6'].getBounds();
+      
+      // 设置地图视图以适应该边�?
+      this.map.fitBounds(bounds, {
+        padding: [50, 50], // 添加边距
+        maxZoom: 10        // 限制最大缩放级�?
+      });
+      
+      // 添加航海信息弹窗
+      // 在路线中间点显示航线信息弹窗
+      const route = this.routes['ship6'];
+      const midPointIndex = Math.floor(route.length / 2);
+      const midPoint = route[midPointIndex];
+      
+      // 创建自定义内容弹�?
+      const popupContent = `
+        <div class="route-info-popup">
+          <h3>上海-宁波舟山航线</h3>
+          <p><strong>航距:</strong> �?65海里</p>
+          <p><strong>航行时间:</strong> �?-10小时(18�?</p>
+          <p><strong>航线特点:</strong></p>
+          <ul>
+            <li>沿黄浦江、长江口主航道航</li>
+            <li>避开长江口南槽浅滩和九段</li>
+            <li>遵循东海航运规则，避开渔场</li>
+            <li>绕行舟山群岛北部水域</li>
+            <li>沿舟山航道进入宁波舟山港</li>
+          </ul>
+          <p><strong>注意:</strong> 受涨�?落潮、季风等影响，实际航线可能略有调</p>
+        </div>
+      `;
+      
+      // 显示弹窗
+      L.popup()
+        .setLatLng([midPoint[1], midPoint[0]])
+        .setContent(popupContent)
+        .openOn(this.map);
+    },
+    startHistoryPlayback() {
+      this.isHistoryPlaying = true;
+      this.historyPlaybackActive = true;
+      
+      // 获取所选时间范围
+      const startTime = new Date(this.historyTimeRange.start).getTime();
+      const endTime = new Date(this.historyTimeRange.end).getTime();
+      const timeRange = endTime - startTime;
+      
+      // 清除任何现有的播放计时器
+      if (this.historyPlaybackInterval) {
+        clearInterval(this.historyPlaybackInterval);
+      }
+      
+      // 开始新的播放循环
+      this.historyPlaybackInterval = setInterval(() => {
+        if (this.historyPlaybackCurrentStep >= this.historyPlaybackTotalSteps) {
+          // 完成播放，停止
+          this.pauseHistoryPlayback();
+          return;
+        }
+        
+        // 更新步数
+        this.historyPlaybackCurrentStep++;
+        
+        // 计算当前时间点
+        const progress = this.historyPlaybackCurrentStep / this.historyPlaybackTotalSteps;
+        const currentTime = startTime + (timeRange * progress);
+        this.historyPlaybackCurrentTime = currentTime;
+        
+        // 更新船舶位置和状态
+        this.updateShipsAtTime(currentTime);
+      }, 100); // 每100毫秒更新一次，控制播放速度
+    },
+    
+    pauseHistoryPlayback() {
+      if (this.historyPlaybackInterval) {
+        clearInterval(this.historyPlaybackInterval);
+        this.historyPlaybackInterval = null;
+      }
+      this.isHistoryPlaying = false;
+    },
+    
+    stopHistoryPlayback() {
+      this.pauseHistoryPlayback();
+      this.historyPlaybackCurrentStep = 0;
+      this.historyPlaybackActive = false;
+      
+      // 重置船舶位置
+      this.resetShipsToInitialPosition();
+    },
+    
+    // 根据时间更新船舶位置
+    updateShipsAtTime(targetTime) {
+      this.ships.forEach(ship => {
+        if (!ship.historyData || ship.historyData.length === 0) {
+          return;
+        }
+        
+        // 找到最接近时间点的记录
+        let closestRecord = null;
+        let minTimeDiff = Infinity;
+        
+        for (const record of ship.historyData) {
+          const timeDiff = Math.abs(record.timestamp - targetTime);
+          if (timeDiff < minTimeDiff) {
+            minTimeDiff = timeDiff;
+            closestRecord = record;
+          }
+        }
+        
+        if (closestRecord) {
+          // 更新船舶属性
+          ship.position = [...closestRecord.position];
+          ship.heading = closestRecord.heading;
+          ship.speed = closestRecord.speed;
+          ship.status = closestRecord.status;
+          ship.fuelRemaining = closestRecord.fuelRemaining;
+          ship.cargoLoad = closestRecord.cargoLoad;
+          
+          // 更新船舶在地图上的位置和朝向
+          if (ship.marker) {
+            const latLng = [ship.position[1], ship.position[0]];
+            ship.marker.setLatLng(latLng);
+            
+            // 更新船舶图标
+            const shipIcon = this.createShipIcon(ship);
+            ship.marker.setIcon(shipIcon);
+          }
+        }
+      });
+      
+      // 如果当前有选中的船舶，更新信息面板
+      if (this.selectedShip) {
+        const updatedShip = this.ships.find(s => s.id === this.selectedShip.id);
+        if (updatedShip) {
+          this.selectedShip = {...updatedShip};
+        }
+      }
+    },
+    
+    // 重置船舶到初始位置
+    resetShipsToInitialPosition() {
+      this.ships.forEach(ship => {
+        const route = this.routes[ship.id];
+        if (route && route.length > 0) {
+          // 重置到航线起点
+          ship.position = [...route[0]];
+          ship.routeIndex = 0;
+          
+          // 计算初始航向
+          if (route.length > 1) {
+            ship.heading = this.calculateHeading(route[0], route[1]);
+          }
+          
+          // 重置其他属性
+          ship.status = '准备启航';
+          ship.fuelRemaining = 100;
+          ship.cargoLoad = 70 + Math.floor(Math.random() * 30);
+          
+          // 更新船舶在地图上的位置
+          if (ship.marker) {
+            const latLng = [ship.position[1], ship.position[0]];
+            ship.marker.setLatLng(latLng);
+            
+            // 更新船舶图标
+            const shipIcon = this.createShipIcon(ship);
+            ship.marker.setIcon(shipIcon);
+          }
+        }
+      });
+    },
+    
+    // 创建船舶图标
+    createShipIcon(ship) {
+      // 基于船舶类型选择不同的图标和颜色
+      let shipSymbol = '▲'; // 默认三角形为集装箱船
+      let iconColor = this.routeColors[ship.id] || '#2980b9';
+      let iconScale = 1.2; // 默认缩放
+      
+      // 根据船舶类型确定图标和颜色
+      if (ship.type === '集装箱船') {
+        shipSymbol = '▲';
+        iconColor = '#3498db'; // 蓝色
+        iconScale = 1.3;
+      } else if (ship.type === '油轮') {
+        shipSymbol = '◆';
+        iconColor = '#e74c3c'; // 红色
+        iconScale = 1.4;
+      } else if (ship.type === '散货船') {
+        shipSymbol = '■';
+        iconColor = '#f39c12'; // 黄色
+        iconScale = 1.3;
+      } else if (ship.type === '滚装船') {
+        shipSymbol = '●';
+        iconColor = '#27ae60'; // 绿色
+        iconScale = 1.3;
+      } else if (ship.type === '渔船') {
+        shipSymbol = '▼';
+        iconColor = '#8e44ad'; // 紫色
+        iconScale = 1.0;
+      }
+      
+      // 创建HTML船舶图标
+      const shipHtml = `
+        <div class="ship-icon-wrapper ship-wrapper-${ship.type}" style="transform: rotate(${ship.heading}deg); transform-origin: center center;">
+          <div class="ship-icon ship-${ship.type}" style="color: ${iconColor}; transform: scale(${iconScale});">${shipSymbol}</div>
+          <div class="ship-shadow"></div>
+          <div class="ship-label">${ship.name}</div>
+        </div>
+      `;
+      
+      // 返回Leaflet DivIcon
+      return L.divIcon({
+        html: shipHtml,
+        className: 'ship-marker',
+        iconSize: [50, 50],
+        iconAnchor: [25, 25]
+      });
+    },
+    applyTimeFilter() {
+      // 在这里添加时间过滤的逻辑
+      console.log('Applying time filter:', this.historyTimeRange);
+    },
+    exitHistoryPlayback() {
+      this.historyPlaybackMode = false;
+    },
+    formatPlaybackTime(step) {
+      // 这里可以添加格式化时间显示的逻辑
+      return `Time: ${step}%`;
+    },
+    seekHistoryPlayback(event) {
+      this.historyPlaybackCurrentTime = event.target.value;
+    },
+    enterHistoryPlaybackMode() {
+      this.historyPlaybackMode = true;
+      
+      // 生成模拟的历史数据
+      this.generateHistoryData();
+    },
+    
+    // 生成历史航行数据
+    generateHistoryData() {
+      // 为每艘船生成过去7天的历史数据
+      this.ships.forEach(ship => {
+        const route = this.routes[ship.id];
+        if (route && route.length > 0) {
+          // 创建一个具有7天历史记录的数组
+          const historyData = [];
+          const now = new Date();
+          
+          // 每隔一小时生成一条记录，共168条(7天*24小时)
+          for (let i = 0; i < 168; i++) {
+            // 生成时间，从当前时间向前推
+            const recordTime = new Date(now);
+            recordTime.setHours(now.getHours() - (168 - i));
+            
+            // 计算船舶在路线上的位置(简化模型：每天完成一个往返)
+            // 每24小时一个完整循环
+            const cycleHours = 24; 
+            const cycleProgress = (i % cycleHours) / cycleHours;
+            let routeIndex;
+            
+            if (cycleProgress <= 0.5) {
+              // 前半程：从起点到终点
+              routeIndex = Math.floor(cycleProgress * 2 * (route.length - 1));
+            } else {
+              // 后半程：从终点返回起点
+              routeIndex = Math.floor((2 - cycleProgress * 2) * (route.length - 1));
+            }
+            
+            // 确保索引在有效范围内
+            routeIndex = Math.max(0, Math.min(route.length - 1, routeIndex));
+            
+            // 计算航向
+            let heading = 0;
+            if (routeIndex < route.length - 1) {
+              const currentPos = route[routeIndex];
+              const nextPos = route[Math.min(routeIndex + 1, route.length - 1)];
+              heading = this.calculateHeading(currentPos, nextPos);
+              
+              // 如果是返回路径，航向需要反向
+              if (cycleProgress > 0.5) {
+                heading = (heading + 180) % 360;
+              }
+            }
+            
+            // 生成速度(基础速度上下浮动10%)
+            const speed = ship.speed * (0.9 + Math.random() * 0.2);
+            
+            // 生成燃油量(假设每天消耗20%，然后补充)
+            const dailyCycle = Math.floor(i / 24);
+            const hourInDay = i % 24;
+            let fuel = 100 - ((hourInDay / 24) * 20);
+            
+            // 每天的最后一小时补充燃油
+            if (hourInDay === 23) {
+              fuel = 100;
+            }
+            
+            // 生成记录
+            historyData.push({
+              timestamp: recordTime.getTime(),
+              position: [...route[routeIndex]],
+              heading: heading,
+              speed: speed,
+              fuelRemaining: fuel,
+              cargoLoad: 70 + Math.floor(Math.random() * 30), // 70-100%的随机载货量
+              status: cycleProgress <= 0.05 ? '启航' : 
+                      cycleProgress >= 0.45 && cycleProgress <= 0.55 ? '靠港' : 
+                      '正常航行'
+            });
+          }
+          
+          // 存储生成的历史数据
+          ship.historyData = historyData;
+        }
+      });
+      
+      // 设置默认的时间范围
+      const now = new Date();
+      const oneWeekAgo = new Date(now);
+      oneWeekAgo.setDate(now.getDate() - 7);
+      
+      this.historyTimeRange.start = this.formatDateForInput(oneWeekAgo);
+      this.historyTimeRange.end = this.formatDateForInput(now);
+    },
+    
+    // 格式化日期为datetime-local输入框所需的格式
+    formatDateForInput(date) {
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      const hours = String(date.getHours()).padStart(2, '0');
+      const minutes = String(date.getMinutes()).padStart(2, '0');
+      
+      return `${year}-${month}-${day}T${hours}:${minutes}`;
     }
   }
 };
@@ -2004,7 +2489,7 @@ export default {
   z-index: 3;
 }
 
-/* 为不同船舶类型设置特定样式 */
+/* 为不同船舶类型设置特定样�?*/
 .ship-集装箱船 {
   transform: scale(1.3);
 }
@@ -2093,4 +2578,224 @@ export default {
 .legend-text {
   font-size: 12px;
 }
+
+.focus-route-btn {
+  background-color: #FF3300; /* 使用与航线相同的颜色 */
+  color: white;
+  margin-top: 10px;
+  margin-bottom: 10px;
+  font-weight: bold;
+  border: 2px solid #FF5500;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.focus-route-btn:hover {
+  background-color: #FF5500;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+}
+
+/* 航线信息弹窗样式 */
+:global(.route-info-popup h3) {
+  color: #FF3300;
+  margin: 0 0 8px 0;
+  border-bottom: 1px solid #ddd;
+  padding-bottom: 5px;
+  font-size: 16px;
+  text-align: center;
+}
+
+:global(.route-info-popup p) {
+  margin: 5px 0;
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+:global(.route-info-popup ul) {
+  margin: 5px 0;
+  padding-left: 20px;
+  font-size: 12px;
+}
+
+:global(.route-info-popup li) {
+  margin-bottom: 3px;
+  line-height: 1.3;
+}
+
+:global(.route-info-popup strong) {
+  color: #2980b9;
+}
+
+:global(.leaflet-popup-content-wrapper) {
+  border-radius: 8px;
+  border-left: 4px solid #FF3300;
+}
+
+/* 添加历史回放面板样式 */
+.history-playback-panel {
+  position: absolute;
+  bottom: 20px;
+  right: 20px;
+  background: rgba(255, 255, 255, 0.95);
+  border-radius: 12px;
+  padding: 15px;
+  width: 320px;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+  z-index: 1000;
+}
+
+.history-panel-content h3 {
+  margin-top: 0;
+  margin-bottom: 15px;
+  color: #2c3e50;
+  text-align: center;
+  font-size: 18px;
+  border-bottom: 1px solid #eee;
+  padding-bottom: 8px;
+}
+
+.date-range-selector {
+  margin-bottom: 15px;
+}
+
+.date-input {
+  margin-bottom: 10px;
+}
+
+.date-input label {
+  display: block;
+  margin-bottom: 5px;
+  font-size: 14px;
+  color: #34495e;
+}
+
+.date-input input {
+  width: 100%;
+  padding: 8px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+}
+
+.primary-button {
+  width: 100%;
+  padding: 10px;
+  background-color: #3498db;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  margin-top: 5px;
+}
+
+.primary-button:hover {
+  background-color: #2980b9;
+}
+
+.playback-controls {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 15px;
+}
+
+.playback-controls button {
+  flex: 1;
+  margin: 0 5px;
+  padding: 8px 0;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  color: white;
+}
+
+.playback-controls button:first-child {
+  margin-left: 0;
+}
+
+.playback-controls button:last-child {
+  margin-right: 0;
+}
+
+.play-button {
+  background-color: #2ecc71;
+}
+
+.play-button:hover {
+  background-color: #27ae60;
+}
+
+.pause-button {
+  background-color: #f39c12;
+}
+
+.pause-button:hover {
+  background-color: #e67e22;
+}
+
+.stop-button {
+  background-color: #e74c3c;
+}
+
+.stop-button:hover {
+  background-color: #c0392b;
+}
+
+.playback-controls button:disabled {
+  background-color: #95a5a6;
+  cursor: not-allowed;
+}
+
+.control-icon {
+  margin-right: 5px;
+}
+
+.playback-progress {
+  margin-bottom: 15px;
+}
+
+.time-display {
+  text-align: center;
+  margin-bottom: 5px;
+  font-family: 'Consolas', monospace;
+  font-size: 14px;
+  color: #2c3e50;
+}
+
+.time-slider {
+  width: 100%;
+  margin-top: 5px;
+}
+
+.exit-button {
+  width: 100%;
+  padding: 10px;
+  background-color: #95a5a6;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.exit-button:hover {
+  background-color: #7f8c8d;
+}
+
+.history-mode-btn {
+  background-color: #FF3300; /* 使用与航线相同的颜色 */
+  color: white;
+  margin-top: 10px;
+  margin-bottom: 10px;
+  font-weight: bold;
+  border: 2px solid #FF5500;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.history-mode-btn:hover {
+  background-color: #FF5500;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+}
 </style>
+
