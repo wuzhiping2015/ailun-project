@@ -100,7 +100,7 @@
       :zoom="zoom"
     />
   </template>
-  <script lang="ts" setup>
+  <script   setup>
   import { MglMap } from 'vue-mapbox-gl'
   const accessToken = import.meta.env.VITE_MAPBOX_TOKEN
   const mapStyle = 'mapbox://styles/mapbox/light-v11'

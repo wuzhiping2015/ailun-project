@@ -124,77 +124,188 @@
 
     <div class="info-panel" v-if="selectedShip">
       <div class="info-content">
-        <h3>船舶详细信息</h3>
+        <div class="info-header">
+          <h3>船舶详细信息</h3>
+          <div class="ship-name">{{ selectedShip.name }} <span>({{ selectedShip.nameEn }})</span></div>
+          <div class="ship-type-badge" :class="'ship-type-'+selectedShip.type">{{ selectedShip.type }}</div>
+        </div>
+        
         <div class="info-grid">
-          <div class="info-section basic-info">
-            <h4>基本信息</h4>
-            <div class="ship-id-block">
-              <p><strong>M/N:</strong> {{ selectedShip.name }} ({{ selectedShip.nameEn }})</p>
-              <p><strong>IMO:</strong> {{ selectedShip.imo }}</p>
-              <p><strong>MMSI:</strong> {{ selectedShip.mmsi }}</p>
-              <p><strong>CallSign:</strong> {{ selectedShip.callsign }}</p>
-              <p><strong>船舶类型:</strong> {{ selectedShip.type }}</p>
-              <p><strong>状态:</strong> {{ selectedShip.status }}</p>
-              <p><strong>船旗:</strong> {{ selectedShip.flag }}</p>
+          <div class="info-card basic-info">
+            <div class="card-header">
+              <h4>基本信息</h4>
+              <div class="card-icon">📋</div>
+            </div>
+            <div class="card-content">
+              <div class="info-row">
+                <span class="info-label">IMO:</span>
+                <span class="info-value">{{ selectedShip.imo }}</span>
+              </div>
+              <div class="info-row">
+                <span class="info-label">MMSI:</span>
+                <span class="info-value">{{ selectedShip.mmsi }}</span>
+              </div>
+              <div class="info-row">
+                <span class="info-label">CallSign:</span>
+                <span class="info-value">{{ selectedShip.callsign }}</span>
+              </div>
+              <div class="info-row">
+                <span class="info-label">状态:</span>
+                <span class="info-value status-badge" :class="'status-'+selectedShip.status">{{ selectedShip.status }}</span>
+              </div>
+              <div class="info-row">
+                <span class="info-label">船旗:</span>
+                <span class="info-value">{{ selectedShip.flag }}</span>
+              </div>
             </div>
           </div>
           
-          <div class="info-section navigation-info">
-            <h4>航行信息</h4>
-            <p><strong>经度:</strong> {{ selectedShip.position[0].toFixed(4) }}</p>
-            <p><strong>纬度:</strong> {{ selectedShip.position[1].toFixed(4) }}</p>
-            <p><strong>SOG:</strong> {{ selectedShip.sog }}</p>
-            <p><strong>COG:</strong> {{ selectedShip.cog }}°</p>
-            <p><strong>航向:</strong> {{ selectedShip.heading.toFixed(1) }}°</p>
-            <p><strong>速度:</strong> {{ selectedShip.speed.toFixed(1) }} 节</p>
-            <p><strong>目的地:</strong> {{ selectedShip.destination }}</p>
-            <p><strong>预计到达:</strong> {{ selectedShip.eta }}</p>
-          </div>
-          
-          <div class="info-section vessel-info">
-            <h4>船舶规格</h4>
-            <p><strong>长度:</strong> {{ selectedShip.length }}米</p>
-            <p><strong>宽度:</strong> {{ selectedShip.width }}米</p>
-            <p><strong>吃水:</strong> {{ selectedShip.draft }}米</p>
-            <p><strong>载重量:</strong> {{ selectedShip.capacity }}</p>
-            <p><strong>船首吃水:</strong> {{ selectedShip.fore_draft }}米</p>
-            <p><strong>船尾吃水:</strong> {{ selectedShip.aft_draft }}米</p>
-          </div>
-          
-          <div class="info-section status-info">
-            <h4>运行状态</h4>
-            <div class="gauge-container">
-              <div class="gauge fuel-gauge">
-                <div class="gauge-label">燃油剩余</div>
-                <div class="gauge-bar">
-                  <div class="gauge-fill" :style="{ width: selectedShip.fuelRemaining + '%', 
-                           backgroundColor: getFuelColor(selectedShip.fuelRemaining) }"></div>
+          <div class="info-card navigation-info">
+            <div class="card-header">
+              <h4>航行信息</h4>
+              <div class="card-icon">🧭</div>
+            </div>
+            <div class="card-content">
+              <div class="coord-display">
+                <div class="coord-item">
+                  <span class="coord-label">经度:</span>
+                  <span class="coord-value">{{ selectedShip.position[0].toFixed(4) }}</span>
                 </div>
-                <div class="gauge-value">{{ selectedShip.fuelRemaining.toFixed(1) }}%</div>
+                <div class="coord-item">
+                  <span class="coord-label">纬度:</span>
+                  <span class="coord-value">{{ selectedShip.position[1].toFixed(4) }}</span>
+                </div>
               </div>
               
-              <div class="gauge cargo-gauge">
-                <div class="gauge-label">载货量</div>
-                <div class="gauge-bar">
-                  <div class="gauge-fill" :style="{ width: selectedShip.cargoLoad + '%', backgroundColor: '#2ecc71' }"></div>
+              <div class="speed-heading-display">
+                <div class="nav-item">
+                  <span class="nav-label">SOG:</span>
+                  <span class="nav-value">{{ selectedShip.sog }}</span>
                 </div>
-                <div class="gauge-value">{{ selectedShip.cargoLoad }}%</div>
+                <div class="nav-item">
+                  <span class="nav-label">COG:</span>
+                  <span class="nav-value">{{ selectedShip.cog }}</span>
+                </div>
+                
+                <div class="compass-wrap">
+                  <div class="compass" :style="{ transform: `rotate(${selectedShip.heading}deg)` }">
+                    <div class="compass-arrow"></div>
+                  </div>
+                  <div class="heading-value">{{ selectedShip.heading.toFixed(1) }}°</div>
+                </div>
               </div>
               
-              <div class="gauge route-gauge">
-                <div class="gauge-label">航程进度</div>
-                <div class="gauge-bar">
-                  <div class="gauge-fill" :style="{ width: getRouteProgress(selectedShip) + '%', backgroundColor: '#3498db' }"></div>
+              <div class="info-row">
+                <span class="info-label">速度:</span>
+                <span class="info-value">{{ selectedShip.speed.toFixed(1) }} 节</span>
+              </div>
+              <div class="info-row">
+                <span class="info-label">目的地:</span>
+                <span class="info-value destination">{{ selectedShip.destination }}</span>
+              </div>
+              <div class="info-row">
+                <span class="info-label">预计到达:</span>
+                <span class="info-value">{{ selectedShip.eta }}</span>
+              </div>
+            </div>
+          </div>
+          
+          <div class="info-card vessel-info">
+            <div class="card-header">
+              <h4>船舶规格</h4>
+              <div class="card-icon">⚓</div>
+            </div>
+            <div class="card-content">
+              <div class="ship-dimensions">
+                <div class="dimension-item">
+                  <span class="dimension-label">长度:</span>
+                  <span class="dimension-value">{{ selectedShip.length }}米</span>
                 </div>
-                <div class="gauge-value">{{ getRouteProgress(selectedShip).toFixed(1) }}%</div>
+                <div class="dimension-item">
+                  <span class="dimension-label">宽度:</span>
+                  <span class="dimension-value">{{ selectedShip.width }}米</span>
+                </div>
+                <div class="dimension-item">
+                  <span class="dimension-label">吃水:</span>
+                  <span class="dimension-value">{{ selectedShip.draft }}米</span>
+                </div>
+              </div>
+              
+              <div class="info-row">
+                <span class="info-label">载重量:</span>
+                <span class="info-value">{{ selectedShip.capacity }}</span>
+              </div>
+              
+              <div class="draft-display">
+                <div class="draft-item">
+                  <span class="draft-label">船首吃水:</span>
+                  <span class="draft-value">{{ selectedShip.fore_draft }}米</span>
+                </div>
+                <div class="draft-item">
+                  <span class="draft-label">船尾吃水:</span>
+                  <span class="draft-value">{{ selectedShip.aft_draft }}米</span>
+                </div>
+                <div class="ship-profile">
+                  <div class="ship-hull"></div>
+                  <div class="water-level"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <div class="info-card status-info">
+            <div class="card-header">
+              <h4>运行状态</h4>
+              <div class="card-icon">📊</div>
+            </div>
+            <div class="card-content">
+              <div class="gauge-container">
+                <div class="gauge fuel-gauge">
+                  <div class="gauge-header">
+                    <div class="gauge-label">燃油剩余</div>
+                    <div class="gauge-value" :class="getFuelClass(selectedShip.fuelRemaining)">
+                      {{ selectedShip.fuelRemaining.toFixed(1) }}%
+                    </div>
+                  </div>
+                  <div class="gauge-bar">
+                    <div class="gauge-fill" :style="{ width: selectedShip.fuelRemaining + '%', 
+                            background: getFuelGradient(selectedShip.fuelRemaining) }"></div>
+                  </div>
+                </div>
+                
+                <div class="gauge cargo-gauge">
+                  <div class="gauge-header">
+                    <div class="gauge-label">载货量</div>
+                    <div class="gauge-value">{{ selectedShip.cargoLoad }}%</div>
+                  </div>
+                  <div class="gauge-bar">
+                    <div class="gauge-fill" :style="{ width: selectedShip.cargoLoad + '%', 
+                            background: 'linear-gradient(90deg, #2ecc71, #27ae60)' }"></div>
+                  </div>
+                </div>
+                
+                <div class="gauge route-gauge">
+                  <div class="gauge-header">
+                    <div class="gauge-label">航程进度</div>
+                    <div class="gauge-value">{{ getRouteProgress(selectedShip).toFixed(1) }}%</div>
+                  </div>
+                  <div class="gauge-bar">
+                    <div class="gauge-fill" :style="{ width: getRouteProgress(selectedShip) + '%', 
+                            background: 'linear-gradient(90deg, #3498db, #2980b9)' }"></div>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
         </div>
         
         <div class="info-actions">
-          <button @click="centerOnShip(selectedShip)">居中显示</button>
-          <button @click="closeInfoPanel">关闭</button>
+          <button class="action-btn center-btn" @click="centerOnShip(selectedShip)">
+            <span class="btn-icon">🔍</span> 居中显示
+          </button>
+          <button class="action-btn close-btn" @click="closeInfoPanel">
+            <span class="btn-icon">✖</span> 关闭
+          </button>
         </div>
       </div>
     </div>
@@ -1266,10 +1377,20 @@ export default {
       }
     },
     
-    getFuelColor(fuelRemaining) {
-      if (fuelRemaining > 80) return '#2ecc71';
-      if (fuelRemaining > 50) return '#f1c40f';
-      return '#e74c3c';
+    getFuelClass(fuelRemaining) {
+      if (fuelRemaining < 30) return 'fuel-low';
+      if (fuelRemaining < 60) return 'fuel-medium';
+      return 'fuel-high';
+    },
+    
+    getFuelGradient(fuelRemaining) {
+      if (fuelRemaining < 30) {
+        return 'linear-gradient(90deg, #e74c3c, #c0392b)';
+      } else if (fuelRemaining < 60) {
+        return 'linear-gradient(90deg, #f39c12, #d35400)';
+      } else {
+        return 'linear-gradient(90deg, #2ecc71, #27ae60)';
+      }
     }
   }
 };
@@ -1444,261 +1565,390 @@ export default {
   position: absolute;
   bottom: 20px;
   left: 20px;
-  background: rgba(255, 255, 255, 0.95);
-  padding: 15px;
-  border-radius: 8px;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+  background: rgba(245, 250, 255, 0.95);
+  border-radius: 12px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
   z-index: 1000;
-  width: 500px;
+  width: 600px;
   max-width: 90%;
-}
-
-.info-panel h3 {
-  margin-top: 0;
-  margin-bottom: 10px;
-  color: #2c3e50;
-}
-
-.info-panel p {
-  margin: 5px 0;
-  font-size: 14px;
-}
-
-.info-panel button {
-  margin-top: 10px;
-  padding: 6px 12px;
-  background: #e74c3c;
-  color: white;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-}
-
-.info-panel button:hover {
-  background: #c0392b;
-}
-
-.error-message {
-  margin: 5px 0;
-  font-size: 14px;
-  color: #e74c3c;
-  font-weight: bold;
-}
-
-.code-example {
-  background-color: #f8f9fa;
-  padding: 10px;
-  border-radius: 4px;
-  margin: 10px 0;
-  font-size: 12px;
-}
-
-.code-example pre {
-  margin: 5px 0;
-  white-space: pre-wrap;
-  word-break: break-all;
-}
-
-.code-example p {
-  margin: 5px 0;
-}
-
-.error-panel ul {
-  margin: 0 0 10px 20px;
-  padding: 0;
-  font-size: 13px;
-}
-
-.warning-text {
-  color: #f39c12;
-  font-weight: bold;
-}
-
-.env-panel {
-  position: absolute;
-  bottom: 20px;
-  right: 20px;
-  background: rgba(255, 255, 255, 0.9);
-  padding: 15px;
-  border-radius: 8px;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
-  z-index: 1000;
-  max-width: 400px;
-}
-
-.env-panel h3 {
-  margin-top: 0;
-  margin-bottom: 10px;
-  color: #2c3e50;
-}
-
-.env-panel p {
-  margin: 5px 0;
-  font-size: 14px;
-}
-
-.retry-button {
-  margin-top: 10px;
-  margin-right: 10px;
-  padding: 6px 12px;
-  background: #e74c3c;
-  color: white;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-}
-
-.check-button {
-  margin-top: 10px;
-  padding: 6px 12px;
-  background: #3498db;
-  color: white;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-}
-
-code {
-  font-family: monospace;
-  background-color: #f8f9fa;
-  padding: 2px 4px;
-  border-radius: 3px;
-  font-size: 90%;
-}
-
-.ship-marker {
-  width: 24px;
-  height: 24px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.ship-icon {
-  color: #2980b9;
-  font-size: 20px;
-  font-weight: bold;
-  text-shadow: 1px 1px 2px white;
-}
-
-.port-label {
-  font-size: 12px;
-  background-color: rgba(255, 255, 255, 0.8);
-  padding: 2px 4px;
-  border-radius: 2px;
-  border: 1px solid #ccc;
-}
-
-.weather-info {
-  background-color: rgba(255, 255, 255, 0.8);
-  border: 1px solid #e74c3c;
-  padding: 5px;
-  border-radius: 3px;
-  font-size: 12px;
-  color: #c0392b;
-  width: 120px;
-  text-align: center;
-  line-height: 1.3;
+  max-height: 85vh;
+  overflow-y: auto;
+  border: 1px solid rgba(30, 144, 255, 0.2);
+  backdrop-filter: blur(10px);
 }
 
 .info-content {
-  position: relative;
+  padding: 20px;
+}
+
+.info-header {
+  border-bottom: 2px solid rgba(52, 152, 219, 0.3);
+  padding-bottom: 10px;
+  margin-bottom: 15px;
+}
+
+.info-header h3 {
+  margin: 0;
+  color: #2c3e50;
+  font-size: 22px;
+  font-weight: 600;
+}
+
+.ship-name {
+  font-size: 18px;
+  color: #34495e;
+  margin: 5px 0;
+}
+
+.ship-name span {
+  font-size: 16px;
+  color: #7f8c8d;
+  font-style: italic;
+}
+
+.ship-type-badge {
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 30px;
+  font-size: 14px;
+  font-weight: 500;
+  margin-top: 5px;
+  color: white;
+}
+
+.ship-type-集装箱船 {
+  background-color: #3498db;
+}
+
+.ship-type-油轮 {
+  background-color: #e74c3c;
+}
+
+.ship-type-散货船 {
+  background-color: #f39c12;
+}
+
+.ship-type-滚装船 {
+  background-color: #27ae60;
+}
+
+.ship-type-渔船 {
+  background-color: #8e44ad;
 }
 
 .info-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 15px;
+}
+
+.info-card {
+  background: white;
+  border-radius: 10px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+  overflow: hidden;
+  transition: all 0.3s ease;
+  border: 1px solid #e9ecef;
+}
+
+.info-card:hover {
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+  transform: translateY(-2px);
+}
+
+.card-header {
+  background: rgba(236, 240, 245, 0.5);
+  padding: 10px 15px;
   display: flex;
-  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid #e9ecef;
 }
 
-.info-section {
-  width: 45%;
-  margin: 10px;
+.card-header h4 {
+  margin: 0;
+  color: #34495e;
+  font-size: 16px;
+  font-weight: 600;
 }
 
-.info-section h4 {
-  margin-top: 0;
-  margin-bottom: 5px;
-  color: #2c3e50;
+.card-icon {
+  font-size: 18px;
 }
 
-.info-section p {
-  margin: 5px 0;
+.card-content {
+  padding: 15px;
+}
+
+.info-row {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 8px;
   font-size: 14px;
 }
 
-.info-actions {
-  margin-top: 10px;
-  text-align: right;
+.info-label {
+  color: #7f8c8d;
+  font-weight: 500;
 }
 
-.info-actions button {
-  margin-left: 10px;
-  padding: 6px 12px;
-  background: #e74c3c;
-  color: white;
-  border: none;
+.info-value {
+  color: #2c3e50;
+  font-weight: 500;
+  font-family: 'Consolas', monospace;
+}
+
+.status-badge {
+  padding: 3px 8px;
   border-radius: 4px;
-  cursor: pointer;
+  font-size: 12px;
+  color: white;
 }
 
-.info-actions button:hover {
-  background: #c0392b;
-}
-
-.gauge-container {
-  margin-top: 10px;
-}
-
-.gauge {
-  margin-bottom: 10px;
-}
-
-.gauge-label {
-  font-weight: bold;
-  margin-bottom: 5px;
-}
-
-.gauge-bar {
-  height: 20px;
-  background-color: #f3f3f3;
-  border-radius: 10px;
-  overflow: hidden;
-}
-
-.gauge-fill {
-  height: 100%;
+.status-正常航行 {
   background-color: #2ecc71;
 }
 
-.gauge-value {
-  text-align: right;
-  padding-right: 5px;
-  font-weight: bold;
+.status-准备启航, .status-重新起航 {
+  background-color: #3498db;
 }
 
-.speed-control {
-  margin-top: 10px;
+.status-即将抵达 {
+  background-color: #f39c12;
 }
 
-.speed-buttons {
+.coord-display {
   display: flex;
   justify-content: space-between;
-  margin-top: 5px;
+  margin-bottom: 15px;
+  background-color: #f8f9fa;
+  padding: 8px;
+  border-radius: 6px;
 }
 
-.speed-buttons button {
-  padding: 4px 8px;
-  margin: 0 2px;
-  background: #95a5a6;
-  color: white;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
+.coord-item, .nav-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.coord-label, .nav-label {
   font-size: 12px;
+  color: #7f8c8d;
+  margin-bottom: 3px;
 }
 
-.speed-buttons button.active {
-  background: #e74c3c;
+.coord-value, .nav-value {
+  font-size: 14px;
+  font-weight: 600;
+  color: #2c3e50;
+  font-family: 'Consolas', monospace;
+}
+
+.speed-heading-display {
+  display: flex;
+  justify-content: space-around;
+  align-items: center;
+  margin-bottom: 15px;
+  background-color: #f8f9fa;
+  padding: 12px 8px;
+  border-radius: 6px;
+}
+
+.compass-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.compass {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background-color: #ecf0f1;
+  position: relative;
+  border: 2px solid #bdc3c7;
+  transition: transform 0.5s ease;
+}
+
+.compass-arrow {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 4px;
+  height: 20px;
+  background: linear-gradient(to bottom, #e74c3c 0%, #e74c3c 50%, #3498db 50%, #3498db 100%);
+  transform: translate(-50%, -50%);
+}
+
+.compass-arrow:after {
+  content: '';
+  position: absolute;
+  top: -4px;
+  left: -4px;
+  width: 0;
+  height: 0;
+  border-left: 6px solid transparent;
+  border-right: 6px solid transparent;
+  border-bottom: 6px solid #e74c3c;
+}
+
+.heading-value {
+  margin-top: 5px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #2c3e50;
+}
+
+.destination {
+  font-weight: 600;
+  color: #16a085;
+}
+
+.ship-dimensions {
+  display: flex;
+  justify-content: space-around;
+  margin-bottom: 12px;
+  background-color: #f8f9fa;
+  padding: 8px;
+  border-radius: 6px;
+}
+
+.dimension-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.dimension-label {
+  font-size: 12px;
+  color: #7f8c8d;
+  margin-bottom: 3px;
+}
+
+.dimension-value {
+  font-size: 14px;
+  font-weight: 600;
+  color: #2c3e50;
+}
+
+.draft-display {
+  margin-top: 12px;
+  background-color: #f8f9fa;
+  padding: 10px;
+  border-radius: 6px;
+}
+
+.draft-item {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 5px;
+}
+
+.draft-label {
+  font-size: 13px;
+  color: #7f8c8d;
+}
+
+.draft-value {
+  font-size: 13px;
+  font-weight: 600;
+  color: #2c3e50;
+}
+
+.ship-profile {
+  height: 30px;
+  position: relative;
+  margin-top: 8px;
+}
+
+.ship-hull {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 15px;
+  background-color: #34495e;
+  border-radius: 5px 5px 0 0;
+}
+
+.water-level {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 15px;
+  background: linear-gradient(to bottom, #3498db, #2980b9);
+  border-radius: 0 0 5px 5px;
+}
+
+.gauge-container {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.gauge {
+  width: 100%;
+}
+
+.gauge-header {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 5px;
+}
+
+.gauge-label {
+  font-size: 14px;
+  color: #7f8c8d;
+  font-weight: 500;
+}
+
+.gauge-value {
+  font-size: 14px;
+  font-weight: 600;
+  color: #2c3e50;
+}
+
+.info-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 20px;
+  gap: 10px;
+}
+
+.action-btn {
+  padding: 8px 15px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  transition: all 0.2s ease;
+}
+
+.btn-icon {
+  margin-right: 6px;
+}
+
+.center-btn {
+  background-color: #3498db;
+  color: white;
+}
+
+.center-btn:hover {
+  background-color: #2980b9;
+}
+
+.close-btn {
+  background-color: #e74c3c;
+  color: white;
+}
+
+.close-btn:hover {
+  background-color: #c0392b;
 }
 
 .port-icon {
