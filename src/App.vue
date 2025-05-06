@@ -6,6 +6,7 @@
       <router-link to="/model-viewer" class="nav-button">3D模型查看器</router-link>
       <router-link to="/digital-twin" class="nav-button">digital-twin</router-link>
       <router-link to="/maritime-map" class="nav-button">海事地图</router-link>
+      <router-link to="/mapbox-maritime" class="nav-button">Mapbox航海系统</router-link>
     </div>
     <div class="content-container">
       <router-view />

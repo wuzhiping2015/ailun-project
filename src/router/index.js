@@ -8,6 +8,8 @@ import Demo from "../components/Demo.vue";
 import DigitalTwinPlatform from "../views/DigitalTwinPlatform.vue";
 // 导入海事地图组件
 import MaritimeMap from "../views/MaritimeMap.vue";
+// 导入Mapbox海事地图组件
+import MapboxMaritimeMap from "../views/MapboxMaritimeMap.vue";
 
 // 定义路由
 const routes = [{
@@ -28,6 +30,14 @@ const routes = [{
         component: MaritimeMap,
         meta: {
             title: "海事地图系统",
+        },
+    },
+    {
+        path: "/mapbox-maritime",
+        name: "MapboxMaritime",
+        component: MapboxMaritimeMap,
+        meta: {
+            title: "Mapbox海事导航系统",
         },
     },
     {
