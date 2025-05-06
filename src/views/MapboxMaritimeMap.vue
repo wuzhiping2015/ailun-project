@@ -1423,7 +1423,7 @@ export default {
   z-index: 1000;
   max-width: 280px;
   overflow-y: auto;
-  max-height: calc(100vh - 60px);
+  max-height: calc(100vh - 100px);
 }
 
 .control-panel h3 {
@@ -1436,9 +1436,9 @@ export default {
 }
 
 .control-section {
-  margin-bottom: 15px;
+
   border-bottom: 1px solid #eee;
-  padding-bottom: 10px;
+
 }
 
 .control-section:last-child {
